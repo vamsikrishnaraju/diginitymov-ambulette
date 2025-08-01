@@ -128,14 +128,14 @@ export default function AdminDashboard() {
       })
 
       if (response.ok) {
-        toast.success('Ambulance added successfully')
+        toast.success('Ambulette added successfully')
         setNewAmbulance({ license_plate: '', model: '', capacity: '' })
         fetchData()
       } else {
-        toast.error('Failed to add ambulance')
+        toast.error('Failed to add ambulette')
       }
     } catch (error) {
-      toast.error('Error adding ambulance')
+      toast.error('Error adding ambulette')
     }
   }
 
@@ -146,13 +146,13 @@ export default function AdminDashboard() {
       })
 
       if (response.ok) {
-        toast.success('Ambulance deleted successfully')
+        toast.success('Ambulette deleted successfully')
         fetchData()
       } else {
-        toast.error('Failed to delete ambulance')
+        toast.error('Failed to delete ambulette')
       }
     } catch (error) {
-      toast.error('Error deleting ambulance')
+      toast.error('Error deleting ambulette')
     }
   }
 
@@ -277,7 +277,7 @@ export default function AdminDashboard() {
 
       <Tabs defaultValue="ambulances" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="ambulances">Ambulances</TabsTrigger>
+          <TabsTrigger value="ambulances">Ambulettes</TabsTrigger>
           <TabsTrigger value="drivers">Drivers</TabsTrigger>
           <TabsTrigger value="bookings">Bookings</TabsTrigger>
           <TabsTrigger value="assignments">Assignments</TabsTrigger>
@@ -288,7 +288,7 @@ export default function AdminDashboard() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Truck className="h-5 w-5 mr-2" />
-                Add New Ambulance
+                Add New Ambulette
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -324,7 +324,7 @@ export default function AdminDashboard() {
                 <div className="flex items-end">
                   <Button onClick={addAmbulance} className="w-full">
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Ambulance
+                    Add Ambulette
                   </Button>
                 </div>
               </div>
@@ -333,8 +333,8 @@ export default function AdminDashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Ambulances List</CardTitle>
-              <CardDescription>Manage your ambulance fleet</CardDescription>
+              <CardTitle>Ambulettes List</CardTitle>
+              <CardDescription>Manage your ambulette fleet</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -473,7 +473,7 @@ export default function AdminDashboard() {
         <TabsContent value="bookings" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Assign Ambulance to Booking</CardTitle>
+              <CardTitle>Assign Ambulette to Booking</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -493,10 +493,10 @@ export default function AdminDashboard() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Select Ambulance</Label>
+                  <Label>Select Ambulette</Label>
                   <Select value={bookingAssignment.ambulance_id} onValueChange={(value) => setBookingAssignment(prev => ({ ...prev, ambulance_id: value }))}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select ambulance" />
+                      <SelectValue placeholder="Select ambulette" />
                     </SelectTrigger>
                     <SelectContent>
                       {ambulances.filter(a => a.status === 'available').map((ambulance) => (
@@ -509,7 +509,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex items-end">
                   <Button onClick={assignAmbulanceToBooking} className="w-full">
-                    Assign Ambulance
+                    Assign Ambulette
                   </Button>
                 </div>
               </div>
@@ -519,7 +519,7 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>All Bookings</CardTitle>
-              <CardDescription>View and manage ambulance bookings</CardDescription>
+              <CardDescription>View and manage ambulette bookings</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -530,7 +530,7 @@ export default function AdminDashboard() {
                     <TableHead>From Date</TableHead>
                     <TableHead>To Date</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Assigned Ambulance</TableHead>
+                    <TableHead>Assigned Ambulette</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -582,10 +582,10 @@ export default function AdminDashboard() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Select Ambulance</Label>
+                  <Label>Select Ambulette</Label>
                   <Select value={assignmentForm.ambulance_id} onValueChange={(value) => setAssignmentForm(prev => ({ ...prev, ambulance_id: value }))}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select ambulance" />
+                      <SelectValue placeholder="Select ambulette" />
                     </SelectTrigger>
                     <SelectContent>
                       {ambulances.map((ambulance) => (

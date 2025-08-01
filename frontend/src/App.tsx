@@ -13,7 +13,7 @@ function App() {
             <div className="flex justify-between h-16">
               <div className="flex items-center">
                 <Ambulance className="h-8 w-8 text-red-600 mr-2" />
-                <span className="text-xl font-bold text-gray-900">Digmov Ambulance</span>
+                <span className="text-xl font-bold text-gray-900">Diginitymov Ambulette</span>
               </div>
               <div className="flex items-center space-x-4">
                 <Link
@@ -21,7 +21,7 @@ function App() {
                   className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100"
                 >
                   <Home className="h-4 w-4 mr-1" />
-                  Book Ambulance
+                  Book Ambulette
                 </Link>
                 <Link
                   to="/admin"

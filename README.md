@@ -13,11 +13,11 @@ A modern web application for ambulette booking with React frontend and FastAPI b
 - Date and time selection for booking period
 
 ### Admin Dashboard
-- Manage ambulances (add/delete)
+- Manage ambulettes (add/delete)
 - Manage drivers (add/delete)
 - View all bookings
-- Assign drivers to ambulances daily
-- Assign ambulances to bookings
+- Assign drivers to ambulettes daily
+- Assign ambulettes to bookings
 - Real-time data management
 
 ## Tech Stack
@@ -97,10 +97,10 @@ VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 - `GET /api/bookings` - Get all bookings
 - `POST /api/bookings` - Create new booking
 
-### Ambulances
-- `GET /api/ambulances` - Get all ambulances
-- `POST /api/ambulances` - Add new ambulance
-- `DELETE /api/ambulances/{ambulance_id}` - Delete ambulance
+### Ambulettes
+- `GET /api/ambulances` - Get all ambulettes
+- `POST /api/ambulances` - Add new ambulette
+- `DELETE /api/ambulances/{ambulance_id}` - Delete ambulette
 
 ### Drivers
 - `GET /api/drivers` - Get all drivers
@@ -109,8 +109,8 @@ VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 
 ### Assignments
 - `GET /api/assignments` - Get driver assignments
-- `POST /api/assign-driver` - Assign driver to ambulance
-- `POST /api/assign-ambulance` - Assign ambulance to booking
+- `POST /api/assign-driver` - Assign driver to ambulette
+- `POST /api/assign-ambulance` - Assign ambulette to booking
 
 ## Google Maps Integration
 

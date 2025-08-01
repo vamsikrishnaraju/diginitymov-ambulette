@@ -5,7 +5,7 @@ from typing import Optional, List
 from datetime import datetime, date
 import uuid
 
-app = FastAPI(title="Digmov Ambulance Booking API")
+app = FastAPI(title="Diginitymov Ambulette Booking API")
 
 # Disable CORS. Do not remove this for full-stack development.
 app.add_middleware(

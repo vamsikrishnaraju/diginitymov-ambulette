@@ -99,10 +99,10 @@ export default function BookingForm() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Calendar className="h-5 w-5 mr-2" />
-            Book an Ambulance
+            Book an Ambulette
           </CardTitle>
           <CardDescription>
-            Fill out the form below to book an ambulance. No registration required.
+            Fill out the form below to book an ambulette. No registration required.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -244,7 +244,7 @@ export default function BookingForm() {
             </div>
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Booking...' : 'Book Ambulance'}
+              {isSubmitting ? 'Booking...' : 'Book Ambulette'}
             </Button>
           </form>
         </CardContent>
