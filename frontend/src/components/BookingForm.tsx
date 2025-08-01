@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Calendar, MapPin, Phone, User, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import MapSelector from './MapSelector'
+import OTPVerification from './OTPVerification'
 
 interface Location {
   address: string
@@ -36,10 +37,15 @@ export default function BookingForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPickupMap, setShowPickupMap] = useState(false)
   const [showDropMap, setShowDropMap] = useState(false)
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+    
+    if (name === 'phone' && isPhoneVerified) {
+      setIsPhoneVerified(false)
+    }
   }
 
   const handleLocationSelect = (location: Location, type: 'pickup' | 'drop') => {
@@ -57,6 +63,11 @@ export default function BookingForm() {
     
     if (!formData.name || !formData.phone || !formData.pickup_location || !formData.drop_location || !formData.from_date || !formData.to_date) {
       toast.error('Please fill in all required fields')
+      return
+    }
+
+    if (!isPhoneVerified) {
+      toast.error('Please verify your phone number with OTP')
       return
     }
 
@@ -83,6 +94,7 @@ export default function BookingForm() {
           from_date: '',
           to_date: ''
         })
+        setIsPhoneVerified(false)
       } else {
         toast.error('Failed to create booking')
       }
@@ -136,6 +148,12 @@ export default function BookingForm() {
                   placeholder="+1234567890"
                   required
                 />
+                {formData.phone && (
+                  <OTPVerification
+                    phone={formData.phone}
+                    onVerified={() => setIsPhoneVerified(true)}
+                  />
+                )}
               </div>
             </div>
 

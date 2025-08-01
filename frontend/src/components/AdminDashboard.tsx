@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Trash2, Plus, UserCheck, Truck } from 'lucide-react'
 import { toast } from 'sonner'
+import OTPVerification from './OTPVerification'
 
 interface Ambulance {
   id: string
@@ -83,6 +84,7 @@ export default function AdminDashboard() {
     booking_id: '',
     ambulance_id: ''
   })
+  const [isDriverPhoneVerified, setIsDriverPhoneVerified] = useState(false)
 
   const apiUrl = import.meta.env.VITE_API_URL as string
 
@@ -162,6 +164,11 @@ export default function AdminDashboard() {
       return
     }
 
+    if (!isDriverPhoneVerified) {
+      toast.error('Please verify the driver phone number with OTP')
+      return
+    }
+
     try {
       const response = await fetch(`${apiUrl}/api/admin/drivers`, {
         method: 'POST',
@@ -172,9 +179,11 @@ export default function AdminDashboard() {
       if (response.ok) {
         toast.success('Driver added successfully')
         setNewDriver({ name: '', phone: '', license_number: '' })
+        setIsDriverPhoneVerified(false)
         fetchData()
       } else {
-        toast.error('Failed to add driver')
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to add driver')
       }
     } catch (error) {
       toast.error('Error adding driver')
@@ -401,9 +410,21 @@ export default function AdminDashboard() {
                   <Input
                     id="driver_phone"
                     value={newDriver.phone}
-                    onChange={(e) => setNewDriver(prev => ({ ...prev, phone: e.target.value }))}
+                    onChange={(e) => {
+                      setNewDriver(prev => ({ ...prev, phone: e.target.value }))
+                      if (isDriverPhoneVerified) {
+                        setIsDriverPhoneVerified(false)
+                      }
+                    }}
                     placeholder="+1234567890"
                   />
+                  {newDriver.phone && (
+                    <OTPVerification
+                      phone={newDriver.phone}
+                      onVerified={() => setIsDriverPhoneVerified(true)}
+                      className="mt-2"
+                    />
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="license_number">License Number</Label>

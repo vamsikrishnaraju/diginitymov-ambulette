@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, date
 import uuid
+import random
+import time
 
 app = FastAPI(title="Diginitymov Ambulette Booking API")
 
@@ -20,6 +22,7 @@ ambulances_db = []
 drivers_db = []
 bookings_db = []
 driver_assignments_db = []
+otp_db = {}
 
 class Location(BaseModel):
     address: str
@@ -87,12 +90,68 @@ class AssignAmbulanceRequest(BaseModel):
     booking_id: str
     ambulance_id: str
 
+class OTPRequest(BaseModel):
+    phone: str
+
+class OTPVerifyRequest(BaseModel):
+    phone: str
+    otp: str
+
+class OTPResponse(BaseModel):
+    message: str
+    expires_at: datetime
+
 @app.get("/healthz")
 async def healthz():
     return {"status": "ok"}
 
+@app.post("/api/send-otp", response_model=OTPResponse)
+async def send_otp(otp_request: OTPRequest):
+    otp = str(random.randint(100000, 999999))
+    expires_at = datetime.now().timestamp() + 300  # 5 minutes expiry
+    
+    otp_db[otp_request.phone] = {
+        "otp": otp,
+        "expires_at": expires_at,
+        "verified": False
+    }
+    
+    print(f"OTP for {otp_request.phone}: {otp}")  # For development/testing
+    
+    return OTPResponse(
+        message=f"OTP sent to {otp_request.phone}. For testing: {otp}",
+        expires_at=datetime.fromtimestamp(expires_at)
+    )
+
+@app.post("/api/verify-otp")
+async def verify_otp(verify_request: OTPVerifyRequest):
+    phone_data = otp_db.get(verify_request.phone)
+    
+    if not phone_data:
+        raise HTTPException(status_code=400, detail="No OTP found for this phone number")
+    
+    if time.time() > phone_data["expires_at"]:
+        del otp_db[verify_request.phone]
+        raise HTTPException(status_code=400, detail="OTP has expired")
+    
+    if phone_data["otp"] != verify_request.otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+    
+    otp_db[verify_request.phone]["verified"] = True
+    
+    return {"message": "OTP verified successfully"}
+
 @app.post("/api/bookings", response_model=Booking)
 async def create_booking(booking_request: BookingRequest):
+    phone_data = otp_db.get(booking_request.phone)
+    
+    if not phone_data or not phone_data.get("verified"):
+        raise HTTPException(status_code=400, detail="Phone number must be verified with OTP before booking")
+    
+    if time.time() > phone_data["expires_at"]:
+        del otp_db[booking_request.phone]
+        raise HTTPException(status_code=400, detail="OTP verification has expired. Please verify again")
+    
     booking_id = str(uuid.uuid4())
     booking = Booking(
         id=booking_id,
@@ -106,6 +165,9 @@ async def create_booking(booking_request: BookingRequest):
         created_at=datetime.now()
     )
     bookings_db.append(booking.dict())
+    
+    del otp_db[booking_request.phone]
+    
     return booking
 
 @app.get("/api/bookings", response_model=List[Booking])
@@ -143,6 +205,15 @@ async def delete_ambulance(ambulance_id: str):
 
 @app.post("/api/admin/drivers", response_model=Driver)
 async def create_driver(driver_request: DriverRequest):
+    phone_data = otp_db.get(driver_request.phone)
+    
+    if not phone_data or not phone_data.get("verified"):
+        raise HTTPException(status_code=400, detail="Phone number must be verified with OTP before creating driver")
+    
+    if time.time() > phone_data["expires_at"]:
+        del otp_db[driver_request.phone]
+        raise HTTPException(status_code=400, detail="OTP verification has expired. Please verify again")
+    
     driver_id = str(uuid.uuid4())
     driver = Driver(
         id=driver_id,
@@ -151,6 +222,9 @@ async def create_driver(driver_request: DriverRequest):
         license_number=driver_request.license_number
     )
     drivers_db.append(driver.dict())
+    
+    del otp_db[driver_request.phone]
+    
     return driver
 
 @app.get("/api/admin/drivers", response_model=List[Driver])
