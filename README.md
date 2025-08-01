@@ -1,11 +1,11 @@
-# Digmov Ambulance Booking System
+# Diginitymov Ambulette Booking System
 
-A modern web application for ambulance booking with React frontend and FastAPI backend.
+A modern web application for ambulette booking with React frontend and FastAPI backend.
 
 ## Features
 
 ### User Booking (No Registration Required)
-- Book ambulance without user registration
+- Book ambulette without user registration
 - Mandatory phone number field
 - Optional email field
 - Name and contact information
@@ -40,7 +40,7 @@ A modern web application for ambulance booking with React frontend and FastAPI b
 ## Project Structure
 
 ```
-digmov-ambulance/
+diginitymov-ambulette/
 ├── frontend/                 # React frontend application
 │   ├── src/
 │   │   ├── components/      # React components
