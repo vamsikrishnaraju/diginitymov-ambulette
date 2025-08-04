@@ -13,30 +13,47 @@ import psycopg
 import os
 from contextlib import asynccontextmanager
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/diginitymov_ambulette")
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL") or os.getenv("FLY_POSTGRES_URL") or "postgresql://postgres:postgres@localhost:5432/diginitymov_ambulette"
 
 async def get_db_connection():
-    return await psycopg.AsyncConnection.connect(DATABASE_URL)
+    try:
+        return await psycopg.AsyncConnection.connect(DATABASE_URL)
+    except Exception as e:
+        print(f"Database connection failed: {e}")
+        raise HTTPException(status_code=503, detail="Database service unavailable")
 
 async def init_database():
     """Initialize database with schema if not exists"""
     try:
         conn = await get_db_connection()
         
-        schema_path = os.path.join(os.path.dirname(__file__), "..", "..", "database_schema.sql")
-        if os.path.exists(schema_path):
-            with open(schema_path, 'r') as f:
-                schema_sql = f.read()
-            
-            await conn.execute(schema_sql)
-            await conn.commit()
-            print("Database schema initialized successfully")
+        result = await conn.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'bookings'
+            );
+        """)
+        tables_exist = await result.fetchone()
+        
+        if not tables_exist[0]:
+            schema_path = os.path.join(os.path.dirname(__file__), "..", "..", "database_schema.sql")
+            if os.path.exists(schema_path):
+                with open(schema_path, 'r') as f:
+                    schema_sql = f.read()
+                
+                await conn.execute(schema_sql)
+                await conn.commit()
+                print("Database schema initialized successfully")
+            else:
+                print("Schema file not found, skipping initialization")
         else:
-            print("Schema file not found, skipping initialization")
+            print("Database schema already exists, skipping initialization")
             
         await conn.close()
     except Exception as e:
         print(f"Database initialization error: {e}")
+        print("Continuing without database - some features may not work")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
