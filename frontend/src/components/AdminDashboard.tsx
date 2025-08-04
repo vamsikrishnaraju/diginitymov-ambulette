@@ -6,9 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Trash2, Plus, UserCheck, Truck } from 'lucide-react'
+import { Trash2, Plus, UserCheck, Truck, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import OTPVerification from './OTPVerification'
+import Login from './Login'
+import { useAuth } from '../contexts/AuthContext'
 
 interface Ambulance {
   id: string
@@ -56,6 +58,7 @@ interface DriverAssignment {
 }
 
 export default function AdminDashboard() {
+  const { isAuthenticated, token, login, logout } = useAuth()
   const [ambulances, setAmbulances] = useState<Ambulance[]>([])
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -92,15 +95,26 @@ export default function AdminDashboard() {
     fetchData()
   }, [])
 
+  const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  })
+
   const fetchData = async () => {
     setLoading(true)
     try {
       const [ambulancesRes, driversRes, bookingsRes, assignmentsRes] = await Promise.all([
-        fetch(`${apiUrl}/api/admin/ambulances`),
-        fetch(`${apiUrl}/api/admin/drivers`),
-        fetch(`${apiUrl}/api/bookings`),
-        fetch(`${apiUrl}/api/admin/driver-assignments`)
+        fetch(`${apiUrl}/api/admin/ambulances`, { headers: getAuthHeaders() }),
+        fetch(`${apiUrl}/api/admin/drivers`, { headers: getAuthHeaders() }),
+        fetch(`${apiUrl}/api/bookings`, { headers: getAuthHeaders() }),
+        fetch(`${apiUrl}/api/admin/driver-assignments`, { headers: getAuthHeaders() })
       ])
+
+      if (ambulancesRes.status === 401 || driversRes.status === 401 || bookingsRes.status === 401 || assignmentsRes.status === 401) {
+        toast.error('Session expired. Please login again.')
+        logout()
+        return
+      }
 
       if (ambulancesRes.ok) setAmbulances(await ambulancesRes.json())
       if (driversRes.ok) setDrivers(await driversRes.json())
@@ -122,7 +136,7 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(`${apiUrl}/api/admin/ambulances`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           ...newAmbulance,
           capacity: parseInt(newAmbulance.capacity)
@@ -144,7 +158,8 @@ export default function AdminDashboard() {
   const deleteAmbulance = async (id: string) => {
     try {
       const response = await fetch(`${apiUrl}/api/admin/ambulances/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
       })
 
       if (response.ok) {
@@ -172,7 +187,7 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(`${apiUrl}/api/admin/drivers`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(newDriver)
       })
 
@@ -193,7 +208,8 @@ export default function AdminDashboard() {
   const deleteDriver = async (id: string) => {
     try {
       const response = await fetch(`${apiUrl}/api/admin/drivers/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
       })
 
       if (response.ok) {
@@ -216,7 +232,7 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(`${apiUrl}/api/admin/assign-driver`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(assignmentForm)
       })
 
@@ -241,7 +257,7 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(`${apiUrl}/api/admin/assign-ambulance`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(bookingAssignment)
       })
 
@@ -267,6 +283,10 @@ export default function AdminDashboard() {
     return ambulance ? ambulance.license_plate : 'Unknown'
   }
 
+  if (!isAuthenticated) {
+    return <Login onLogin={login} />
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -279,9 +299,15 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <Button onClick={fetchData} variant="outline">
-          Refresh Data
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={fetchData} variant="outline">
+            Refresh Data
+          </Button>
+          <Button onClick={logout} variant="outline">
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="ambulances" className="space-y-4">

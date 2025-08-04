@@ -2,12 +2,14 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import { Ambulance, Users, Home } from 'lucide-react'
 import BookingForm from './components/BookingForm'
 import AdminDashboard from './components/AdminDashboard'
+import { AuthProvider } from './contexts/AuthContext'
 import './App.css'
 
 function App() {
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-50">
+    <AuthProvider>
+      <Router>
+        <div className="min-h-screen bg-gray-50">
         <nav className="bg-white shadow-lg">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex justify-between h-16">
@@ -41,8 +43,9 @@ function App() {
             <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
         </main>
-      </div>
-    </Router>
+        </div>
+      </Router>
+    </AuthProvider>
   )
 }
 
