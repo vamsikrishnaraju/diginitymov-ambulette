@@ -74,6 +74,14 @@ export default function BookingForm() {
       return
     }
 
+    const fromDate = new Date(formData.from_date)
+    const toDate = new Date(formData.to_date)
+    
+    if (toDate <= fromDate) {
+      toast.error('To date and time must be greater than from date and time')
+      return
+    }
+
     setIsSubmitting(true)
     
     try {
