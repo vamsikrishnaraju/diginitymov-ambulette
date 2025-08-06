@@ -206,28 +206,39 @@ export default function BookingForm() {
                   Pickup Location *
                 </Label>
                 {formData.pickup_location ? (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                    <p className="text-sm text-green-800">{formData.pickup_location.address}</p>
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-green-800 mb-1">Selected Pickup Location:</p>
+                        <p className="text-sm text-green-700">{formData.pickup_location.address}</p>
+                        <p className="text-xs text-green-600 mt-1">
+                          Coordinates: {formData.pickup_location.latitude.toFixed(6)}, {formData.pickup_location.longitude.toFixed(6)}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="ml-3"
+                        onClick={() => setShowPickupMap(true)}
+                      >
+                        Edit
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
-                      className="mt-2"
+                      className="w-full h-12 border-dashed border-2 border-gray-300 hover:border-gray-400"
                       onClick={() => setShowPickupMap(true)}
                     >
-                      Change Location
+                      <MapPin className="h-5 w-5 mr-2" />
+                      Select Pickup Location (Required)
                     </Button>
+                    <p className="text-xs text-gray-500">Click to open map and select your pickup location</p>
                   </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setShowPickupMap(true)}
-                  >
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Select Pickup Location
-                  </Button>
                 )}
               </div>
 
@@ -237,28 +248,39 @@ export default function BookingForm() {
                   Drop Location *
                 </Label>
                 {formData.drop_location ? (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                    <p className="text-sm text-green-800">{formData.drop_location.address}</p>
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-blue-800 mb-1">Selected Drop Location:</p>
+                        <p className="text-sm text-blue-700">{formData.drop_location.address}</p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          Coordinates: {formData.drop_location.latitude.toFixed(6)}, {formData.drop_location.longitude.toFixed(6)}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="ml-3"
+                        onClick={() => setShowDropMap(true)}
+                      >
+                        Edit
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
-                      className="mt-2"
+                      className="w-full h-12 border-dashed border-2 border-gray-300 hover:border-gray-400"
                       onClick={() => setShowDropMap(true)}
                     >
-                      Change Location
+                      <MapPin className="h-5 w-5 mr-2" />
+                      Select Drop Location (Required)
                     </Button>
+                    <p className="text-xs text-gray-500">Click to open map and select your drop-off location</p>
                   </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setShowDropMap(true)}
-                  >
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Select Drop Location
-                  </Button>
                 )}
               </div>
             </div>
