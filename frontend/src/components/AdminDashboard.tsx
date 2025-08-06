@@ -33,6 +33,7 @@ interface Booking {
   name: string
   phone: string
   email?: string
+  health_condition?: string
   pickup_location: {
     address: string
     latitude: number
@@ -574,6 +575,10 @@ export default function AdminDashboard() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Phone</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Health Condition</TableHead>
+                    <TableHead>Pickup Location</TableHead>
+                    <TableHead>Drop Location</TableHead>
                     <TableHead>From Date</TableHead>
                     <TableHead>To Date</TableHead>
                     <TableHead>Status</TableHead>
@@ -585,6 +590,16 @@ export default function AdminDashboard() {
                     <TableRow key={booking.id}>
                       <TableCell className="font-medium">{booking.name}</TableCell>
                       <TableCell>{booking.phone}</TableCell>
+                      <TableCell>{booking.email || 'N/A'}</TableCell>
+                      <TableCell className="max-w-xs truncate" title={booking.health_condition || 'None'}>
+                        {booking.health_condition || 'None'}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate" title={booking.pickup_location?.address || 'N/A'}>
+                        {booking.pickup_location?.address || 'N/A'}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate" title={booking.drop_location?.address || 'N/A'}>
+                        {booking.drop_location?.address || 'N/A'}
+                      </TableCell>
                       <TableCell>{new Date(booking.from_date).toLocaleString()}</TableCell>
                       <TableCell>{new Date(booking.to_date).toLocaleString()}</TableCell>
                       <TableCell>
