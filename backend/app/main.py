@@ -92,6 +92,7 @@ class BookingRequest(BaseModel):
     name: str
     phone: str
     email: Optional[str] = None
+    health_condition: Optional[str] = None
     pickup_location: Location
     drop_location: Location
     from_date: datetime
@@ -102,6 +103,7 @@ class Booking(BaseModel):
     name: str
     phone: str
     email: Optional[str] = None
+    health_condition: Optional[str] = None
     pickup_location: Location
     drop_location: Location
     from_date: datetime
@@ -301,9 +303,9 @@ async def create_booking(booking_request: BookingRequest):
         
         booking_id = str(uuid.uuid4())
         await conn.execute(
-            """INSERT INTO bookings (id, name, phone, email, pickup_location_id, drop_location_id, 
-               from_date, to_date, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (booking_id, booking_request.name, booking_request.phone, booking_request.email,
+            """INSERT INTO bookings (id, name, phone, email, health_condition, pickup_location_id, drop_location_id, 
+               from_date, to_date, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (booking_id, booking_request.name, booking_request.phone, booking_request.email, booking_request.health_condition,
              pickup_location_id, drop_location_id, booking_request.from_date, booking_request.to_date, "pending")
         )
         
@@ -317,6 +319,7 @@ async def create_booking(booking_request: BookingRequest):
             name=booking_request.name,
             phone=booking_request.phone,
             email=booking_request.email,
+            health_condition=booking_request.health_condition,
             pickup_location=booking_request.pickup_location,
             drop_location=booking_request.drop_location,
             from_date=booking_request.from_date,
@@ -333,7 +336,7 @@ async def get_bookings(current_user: str = Depends(verify_token)):
     conn = await get_db_connection()
     try:
         cursor = await conn.execute("""
-            SELECT b.id, b.name, b.phone, b.email, b.from_date, b.to_date, b.status, 
+            SELECT b.id, b.name, b.phone, b.email, b.health_condition, b.from_date, b.to_date, b.status, 
                    b.assigned_ambulance_id, b.created_at,
                    pl.address as pickup_address, pl.latitude as pickup_lat, pl.longitude as pickup_lng,
                    dl.address as drop_address, dl.latitude as drop_lat, dl.longitude as drop_lng
@@ -351,13 +354,14 @@ async def get_bookings(current_user: str = Depends(verify_token)):
                 name=row[1],
                 phone=row[2],
                 email=row[3],
-                from_date=row[4],
-                to_date=row[5],
-                status=row[6],
-                assigned_ambulance_id=row[7],
-                created_at=row[8],
-                pickup_location=Location(address=row[9], latitude=row[10], longitude=row[11]),
-                drop_location=Location(address=row[12], latitude=row[13], longitude=row[14])
+                health_condition=row[4],
+                from_date=row[5],
+                to_date=row[6],
+                status=row[7],
+                assigned_ambulance_id=row[8],
+                created_at=row[9],
+                pickup_location=Location(address=row[10], latitude=row[11], longitude=row[12]),
+                drop_location=Location(address=row[13], latitude=row[14], longitude=row[15])
             )
             bookings.append(booking)
         
@@ -370,7 +374,7 @@ async def get_booking(booking_id: str):
     conn = await get_db_connection()
     try:
         cursor = await conn.execute("""
-            SELECT b.id, b.name, b.phone, b.email, b.from_date, b.to_date, b.status, 
+            SELECT b.id, b.name, b.phone, b.email, b.health_condition, b.from_date, b.to_date, b.status, 
                    b.assigned_ambulance_id, b.created_at,
                    pl.address as pickup_address, pl.latitude as pickup_lat, pl.longitude as pickup_lng,
                    dl.address as drop_address, dl.latitude as drop_lat, dl.longitude as drop_lng
@@ -389,13 +393,14 @@ async def get_booking(booking_id: str):
             name=result[1],
             phone=result[2],
             email=result[3],
-            from_date=result[4],
-            to_date=result[5],
-            status=result[6],
-            assigned_ambulance_id=result[7],
-            created_at=result[8],
-            pickup_location=Location(address=result[9], latitude=result[10], longitude=result[11]),
-            drop_location=Location(address=result[12], latitude=result[13], longitude=result[14])
+            health_condition=result[4],
+            from_date=result[5],
+            to_date=result[6],
+            status=result[7],
+            assigned_ambulance_id=result[8],
+            created_at=result[9],
+            pickup_location=Location(address=result[10], latitude=result[11], longitude=result[12]),
+            drop_location=Location(address=result[13], latitude=result[14], longitude=result[15])
         )
         
         return booking

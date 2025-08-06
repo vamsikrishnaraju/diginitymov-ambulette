@@ -39,6 +39,7 @@ CREATE TABLE bookings (
     name VARCHAR(255) NOT NULL,
     phone VARCHAR(20) NOT NULL,
     email VARCHAR(255),
+    health_condition TEXT,
     pickup_location_id UUID NOT NULL REFERENCES locations(id) ON DELETE RESTRICT,
     drop_location_id UUID NOT NULL REFERENCES locations(id) ON DELETE RESTRICT,
     from_date TIMESTAMP WITH TIME ZONE NOT NULL,

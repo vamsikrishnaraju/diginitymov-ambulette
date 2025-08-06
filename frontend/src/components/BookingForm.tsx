@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Calendar, MapPin, Phone, User, Mail } from 'lucide-react'
+import { Calendar, MapPin, Phone, User, Mail, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import MapSelector from './MapSelector'
 import OTPVerification from './OTPVerification'
@@ -18,6 +19,7 @@ interface BookingData {
   name: string
   phone: string
   email: string
+  health_condition: string
   pickup_location: Location | null
   drop_location: Location | null
   from_date: string
@@ -29,6 +31,7 @@ export default function BookingForm() {
     name: '',
     phone: '',
     email: '',
+    health_condition: '',
     pickup_location: null,
     drop_location: null,
     from_date: '',
@@ -39,7 +42,7 @@ export default function BookingForm() {
   const [showDropMap, setShowDropMap] = useState(false)
   const [isPhoneVerified, setIsPhoneVerified] = useState(false)
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
     
@@ -89,6 +92,7 @@ export default function BookingForm() {
           name: '',
           phone: '',
           email: '',
+          health_condition: '',
           pickup_location: null,
           drop_location: null,
           from_date: '',
@@ -169,6 +173,21 @@ export default function BookingForm() {
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="your.email@example.com"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="health_condition" className="flex items-center">
+                <FileText className="h-4 w-4 mr-1" />
+                Health Condition (Optional)
+              </Label>
+              <Textarea
+                id="health_condition"
+                name="health_condition"
+                value={formData.health_condition}
+                onChange={handleInputChange}
+                placeholder="Please describe any relevant health conditions, mobility requirements, or special medical needs..."
+                rows={3}
               />
             </div>
 
