@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 import uuid
 import random
 import time
@@ -251,7 +251,7 @@ async def verify_otp(verify_request: OTPVerifyRequest):
         
         otp_code, expires_at, verified = result
         
-        if datetime.now() > expires_at:
+        if datetime.now(timezone.utc) > expires_at:
             await conn.execute("DELETE FROM otp_verifications WHERE phone = %s", (verify_request.phone,))
             await conn.commit()
             raise HTTPException(status_code=400, detail="OTP has expired")
@@ -283,7 +283,7 @@ async def create_booking(booking_request: BookingRequest):
             raise HTTPException(status_code=400, detail="Phone number must be verified with OTP before booking")
         
         verified, expires_at = result
-        if datetime.now() > expires_at:
+        if datetime.now(timezone.utc) > expires_at:
             raise HTTPException(status_code=400, detail="OTP verification has expired. Please verify again")
         
         pickup_location_id = str(uuid.uuid4())
@@ -476,7 +476,7 @@ async def create_driver(driver_request: DriverRequest, current_user: str = Depen
             raise HTTPException(status_code=400, detail="Phone number must be verified with OTP before creating driver")
         
         verified, expires_at = result
-        if datetime.now() > expires_at:
+        if datetime.now(timezone.utc) > expires_at:
             raise HTTPException(status_code=400, detail="OTP verification has expired. Please verify again")
         
         driver_id = str(uuid.uuid4())
