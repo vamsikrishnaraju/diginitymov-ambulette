@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Loader } from '@googlemaps/js-api-loader'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { X, MapPin } from 'lucide-react'
+import { X, MapPin, Search } from 'lucide-react'
 
 interface Location {
   address: string
@@ -18,10 +19,12 @@ interface MapSelectorProps {
 
 export default function MapSelector({ onLocationSelect, onClose, title }: MapSelectorProps) {
   const mapRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [, setMap] = useState<google.maps.Map | null>(null)
   const [, setMarker] = useState<google.maps.Marker | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [searchValue, setSearchValue] = useState('')
 
   useEffect(() => {
     const initMap = async () => {
@@ -86,6 +89,33 @@ export default function MapSelector({ onLocationSelect, onClose, title }: MapSel
             }
           })
 
+          if (searchInputRef.current) {
+            const autocomplete = new google.maps.places.Autocomplete(searchInputRef.current, {
+              types: ['establishment', 'geocode'],
+              componentRestrictions: { country: 'us' }
+            })
+
+            autocomplete.addListener('place_changed', () => {
+              const place = autocomplete.getPlace()
+              if (place.geometry && place.geometry.location) {
+                const lat = place.geometry.location.lat()
+                const lng = place.geometry.location.lng()
+                
+                mapInstance.setCenter({ lat, lng })
+                mapInstance.setZoom(15)
+                markerInstance.setPosition({ lat, lng })
+                
+                setSelectedLocation({
+                  address: place.formatted_address || place.name || '',
+                  latitude: lat,
+                  longitude: lng
+                })
+                
+                setSearchValue(place.formatted_address || place.name || '')
+              }
+            })
+          }
+
           setMap(mapInstance)
           setMarker(markerInstance)
           setIsLoading(false)
@@ -118,6 +148,22 @@ export default function MapSelector({ onLocationSelect, onClose, title }: MapSel
           </Button>
         </CardHeader>
         <CardContent className="p-0">
+          <div className="p-4 border-b">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search for a location..."
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Search for an address or click on the map to select a location
+            </p>
+          </div>
           <div className="h-96 w-full relative">
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
@@ -148,7 +194,7 @@ export default function MapSelector({ onLocationSelect, onClose, title }: MapSel
           {!selectedLocation && !isLoading && (
             <div className="p-4 border-t">
               <p className="text-sm text-gray-600 text-center">
-                Click on the map to select a location
+                Search above or click on the map to select a location
               </p>
             </div>
           )}
