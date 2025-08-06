@@ -3,7 +3,7 @@ import { Loader } from '@googlemaps/js-api-loader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { X, MapPin, Search } from 'lucide-react'
+import { X, MapPin, Search, Navigation } from 'lucide-react'
 
 interface Location {
   address: string
@@ -20,13 +20,41 @@ interface MapSelectorProps {
 export default function MapSelector({ onLocationSelect, onClose, title }: MapSelectorProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const [, setMap] = useState<google.maps.Map | null>(null)
-  const [, setMarker] = useState<google.maps.Marker | null>(null)
+  const [map, setMap] = useState<google.maps.Map | null>(null)
+  const [marker, setMarker] = useState<google.maps.Marker | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [searchValue, setSearchValue] = useState('')
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [isGettingLocation, setIsGettingLocation] = useState(false)
 
   useEffect(() => {
+    const getCurrentLocation = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const userLocation = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            }
+            setCurrentLocation(userLocation)
+          },
+          (error) => {
+            console.log('Geolocation error:', error)
+            setCurrentLocation({ lat: 40.7128, lng: -74.0060 })
+          }
+        )
+      } else {
+        setCurrentLocation({ lat: 40.7128, lng: -74.0060 })
+      }
+    }
+
+    getCurrentLocation()
+  }, [])
+
+  useEffect(() => {
+    if (!currentLocation) return
+
     const initMap = async () => {
       const loader = new Loader({
         apiKey: (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || 'demo-key',
@@ -39,7 +67,7 @@ export default function MapSelector({ onLocationSelect, onClose, title }: MapSel
         
         if (mapRef.current) {
           const mapInstance = new google.maps.Map(mapRef.current, {
-            center: { lat: 40.7128, lng: -74.0060 },
+            center: currentLocation,
             zoom: 13,
             mapTypeControl: false,
             streetViewControl: false,
@@ -127,11 +155,50 @@ export default function MapSelector({ onLocationSelect, onClose, title }: MapSel
     }
 
     initMap()
-  }, [])
+  }, [currentLocation])
 
   const handleConfirm = () => {
     if (selectedLocation) {
       onLocationSelect(selectedLocation)
+    }
+  }
+
+  const useCurrentLocation = () => {
+    if (!map || !marker || isGettingLocation) return
+
+    setIsGettingLocation(true)
+    
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          }
+          
+          map.setCenter(userLocation)
+          map.setZoom(15)
+          marker.setPosition(userLocation)
+          
+          const geocoder = new google.maps.Geocoder()
+          geocoder.geocode({ location: userLocation }, (results, status) => {
+            if (status === 'OK' && results && results[0]) {
+              setSelectedLocation({
+                address: results[0].formatted_address,
+                latitude: userLocation.lat,
+                longitude: userLocation.lng
+              })
+            }
+            setIsGettingLocation(false)
+          })
+        },
+        (error) => {
+          console.error('Error getting current location:', error)
+          setIsGettingLocation(false)
+        }
+      )
+    } else {
+      setIsGettingLocation(false)
     }
   }
 
@@ -149,19 +216,32 @@ export default function MapSelector({ onLocationSelect, onClose, title }: MapSel
         </CardHeader>
         <CardContent className="p-0">
           <div className="p-4 border-b">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search for a location..."
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                className="pl-10"
-              />
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search for a location..."
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={useCurrentLocation}
+                disabled={isGettingLocation}
+                className="w-full"
+              >
+                <Navigation className="h-4 w-4 mr-2" />
+                {isGettingLocation ? 'Getting location...' : 'Use Current Location'}
+              </Button>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              Search for an address or click on the map to select a location
+              Search for an address, use current location, or click on the map to select a location
             </p>
           </div>
           <div className="h-96 w-full relative">
