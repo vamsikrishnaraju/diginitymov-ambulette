@@ -814,11 +814,7 @@ export default function AdminDashboard() {
       <div className="flex flex-col h-screen w-full">
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-white z-10">
           <SidebarTrigger className="-ml-1" />
-          <div className="flex items-center gap-2">
-            <Truck className="h-6 w-6 text-red-600" />
-            <span className="font-semibold">Admin Panel</span>
-          </div>
-          <div className="flex flex-1 items-center justify-between ml-4">
+          <div className="flex flex-1 items-center justify-between">
             <h1 className="text-xl font-semibold">
               {menuItems.find(item => item.key === activeMenuItem)?.label || 'Dashboard'}
             </h1>
