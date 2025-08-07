@@ -51,7 +51,7 @@ export default function Bookings() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ phone, otp: '' }),
+        body: JSON.stringify({ phone }),
       })
 
       if (response.ok) {

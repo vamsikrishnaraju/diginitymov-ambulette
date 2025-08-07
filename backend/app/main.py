@@ -217,6 +217,9 @@ class OTPVerifyRequest(BaseModel):
     phone: str
     otp: str
 
+class PhoneVerifyRequest(BaseModel):
+    phone: str
+
 class OTPResponse(BaseModel):
     message: str
     expires_at: datetime
@@ -467,7 +470,7 @@ async def get_booking(booking_id: str):
         await conn.close()
 
 @app.post("/api/bookings/by-phone", response_model=List[Booking])
-async def get_bookings_by_phone(verify_request: OTPVerifyRequest):
+async def get_bookings_by_phone(verify_request: PhoneVerifyRequest):
     conn = await get_db_connection()
     try:
         cursor = await conn.execute(
