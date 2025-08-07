@@ -33,6 +33,7 @@ interface Booking {
   name: string
   phone: string
   email?: string
+  health_condition?: string
   pickup_location: {
     address: string
     latitude: number
@@ -296,14 +297,14 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <div className="flex gap-2">
-          <Button onClick={fetchData} variant="outline">
+    <div className="space-y-4 sm:space-y-6 px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button onClick={fetchData} variant="outline" className="w-full sm:w-auto">
             Refresh Data
           </Button>
-          <Button onClick={logout} variant="outline">
+          <Button onClick={logout} variant="outline" className="w-full sm:w-auto">
             <LogOut className="h-4 w-4 mr-2" />
             Logout
           </Button>
@@ -311,11 +312,11 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="ambulances" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="ambulances">Ambulettes</TabsTrigger>
-          <TabsTrigger value="drivers">Drivers</TabsTrigger>
-          <TabsTrigger value="bookings">Bookings</TabsTrigger>
-          <TabsTrigger value="assignments">Assignments</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+          <TabsTrigger value="ambulances" className="text-xs sm:text-sm">Ambulettes</TabsTrigger>
+          <TabsTrigger value="drivers" className="text-xs sm:text-sm">Drivers</TabsTrigger>
+          <TabsTrigger value="bookings" className="text-xs sm:text-sm">Bookings</TabsTrigger>
+          <TabsTrigger value="assignments" className="text-xs sm:text-sm">Assignments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="ambulances" className="space-y-4">
@@ -326,8 +327,8 @@ export default function AdminDashboard() {
                 Add New Ambulette
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <Label htmlFor="license_plate">License Plate</Label>
                   <Input
@@ -371,17 +372,18 @@ export default function AdminDashboard() {
               <CardTitle>Ambulettes List</CardTitle>
               <CardDescription>Manage your ambulette fleet</CardDescription>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>License Plate</TableHead>
-                    <TableHead>Model</TableHead>
-                    <TableHead>Capacity</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
+            <CardContent className="p-4 sm:p-6">
+              <div className="overflow-x-auto">
+                <Table className="min-w-full">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>License Plate</TableHead>
+                      <TableHead>Model</TableHead>
+                      <TableHead>Capacity</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                   {ambulances.map((ambulance) => (
                     <TableRow key={ambulance.id}>
@@ -406,8 +408,9 @@ export default function AdminDashboard() {
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
-              </Table>
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -420,8 +423,8 @@ export default function AdminDashboard() {
                 Add New Driver
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <Label htmlFor="driver_name">Name</Label>
                   <Input
@@ -476,17 +479,18 @@ export default function AdminDashboard() {
               <CardTitle>Drivers List</CardTitle>
               <CardDescription>Manage your driver team</CardDescription>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>License Number</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
+            <CardContent className="p-4 sm:p-6">
+              <div className="overflow-x-auto">
+                <Table className="min-w-full">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>License Number</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                   {drivers.map((driver) => (
                     <TableRow key={driver.id}>
@@ -511,8 +515,9 @@ export default function AdminDashboard() {
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
-              </Table>
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -522,8 +527,8 @@ export default function AdminDashboard() {
             <CardHeader>
               <CardTitle>Assign Ambulette to Booking</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <Label>Select Booking</Label>
                   <Select value={bookingAssignment.booking_id} onValueChange={(value) => setBookingAssignment(prev => ({ ...prev, booking_id: value }))}>
@@ -568,23 +573,38 @@ export default function AdminDashboard() {
               <CardTitle>All Bookings</CardTitle>
               <CardDescription>View and manage ambulette bookings</CardDescription>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>From Date</TableHead>
-                    <TableHead>To Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Assigned Ambulette</TableHead>
-                  </TableRow>
-                </TableHeader>
+            <CardContent className="p-4 sm:p-6">
+              <div className="overflow-x-auto">
+                <Table className="min-w-[800px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Health Condition</TableHead>
+                      <TableHead>Pickup Location</TableHead>
+                      <TableHead>Drop Location</TableHead>
+                      <TableHead>From Date</TableHead>
+                      <TableHead>To Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Assigned Ambulette</TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                   {bookings.map((booking) => (
                     <TableRow key={booking.id}>
                       <TableCell className="font-medium">{booking.name}</TableCell>
                       <TableCell>{booking.phone}</TableCell>
+                      <TableCell>{booking.email || 'N/A'}</TableCell>
+                      <TableCell className="max-w-xs truncate" title={booking.health_condition || 'None'}>
+                        {booking.health_condition || 'None'}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate" title={booking.pickup_location?.address || 'N/A'}>
+                        {booking.pickup_location?.address || 'N/A'}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate" title={booking.drop_location?.address || 'N/A'}>
+                        {booking.drop_location?.address || 'N/A'}
+                      </TableCell>
                       <TableCell>{new Date(booking.from_date).toLocaleString()}</TableCell>
                       <TableCell>{new Date(booking.to_date).toLocaleString()}</TableCell>
                       <TableCell>
@@ -600,8 +620,9 @@ export default function AdminDashboard() {
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
-              </Table>
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -611,8 +632,8 @@ export default function AdminDashboard() {
             <CardHeader>
               <CardTitle>Assign Driver to Ambulance</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <Label>Select Driver</Label>
                   <Select value={assignmentForm.driver_id} onValueChange={(value) => setAssignmentForm(prev => ({ ...prev, driver_id: value }))}>
@@ -666,15 +687,16 @@ export default function AdminDashboard() {
               <CardTitle>Driver Assignments</CardTitle>
               <CardDescription>View daily driver assignments</CardDescription>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Driver</TableHead>
-                    <TableHead>Ambulance</TableHead>
-                    <TableHead>Date</TableHead>
-                  </TableRow>
-                </TableHeader>
+            <CardContent className="p-4 sm:p-6">
+              <div className="overflow-x-auto">
+                <Table className="min-w-full">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Driver</TableHead>
+                      <TableHead>Ambulance</TableHead>
+                      <TableHead>Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                   {assignments.map((assignment) => (
                     <TableRow key={assignment.id}>
@@ -683,8 +705,9 @@ export default function AdminDashboard() {
                       <TableCell>{new Date(assignment.date).toLocaleDateString()}</TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
-              </Table>
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

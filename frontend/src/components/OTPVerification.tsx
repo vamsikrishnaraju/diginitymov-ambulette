@@ -17,6 +17,7 @@ export default function OTPVerification({ phone, onVerified, className = '' }: O
   const [isVerified, setIsVerified] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [timeLeft, setTimeLeft] = useState(0)
+  const [sendCooldown, setSendCooldown] = useState(0)
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>
@@ -27,6 +28,16 @@ export default function OTPVerification({ phone, onVerified, className = '' }: O
     }
     return () => clearInterval(interval)
   }, [timeLeft])
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>
+    if (sendCooldown > 0) {
+      interval = setInterval(() => {
+        setSendCooldown(time => time - 1)
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [sendCooldown])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -54,6 +65,7 @@ export default function OTPVerification({ phone, onVerified, className = '' }: O
         const data = await response.json()
         setIsOtpSent(true)
         setTimeLeft(300) // 5 minutes
+        setSendCooldown(60) // 1 minute cooldown
         toast.success('OTP sent successfully!')
         console.log('OTP for testing:', data.message)
       } else {
@@ -101,6 +113,7 @@ export default function OTPVerification({ phone, onVerified, className = '' }: O
     setOtp('')
     setIsOtpSent(false)
     setTimeLeft(0)
+    setSendCooldown(0)
     sendOTP()
   }
 
@@ -120,10 +133,10 @@ export default function OTPVerification({ phone, onVerified, className = '' }: O
           type="button"
           variant="outline"
           onClick={sendOTP}
-          disabled={isLoading || !phone}
+          disabled={isLoading || !phone || sendCooldown > 0}
           className="w-full"
         >
-          {isLoading ? 'Sending...' : 'Send OTP'}
+          {isLoading ? 'Sending...' : sendCooldown > 0 ? `Wait ${sendCooldown}s` : 'Send OTP'}
         </Button>
       </div>
     )
@@ -142,11 +155,12 @@ export default function OTPVerification({ phone, onVerified, className = '' }: O
           onChange={(e) => setOtp(e.target.value)}
           placeholder="Enter 6-digit OTP"
           maxLength={6}
-          className="text-center text-lg tracking-widest"
+          className="text-center text-lg tracking-widest h-12 sm:h-10"
+          inputMode="numeric"
         />
       </div>
       
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center space-x-1 text-sm text-gray-600">
           <Clock className="h-3 w-3" />
           <span>
@@ -161,6 +175,7 @@ export default function OTPVerification({ phone, onVerified, className = '' }: O
             size="sm"
             onClick={resendOTP}
             disabled={isLoading}
+            className="w-full sm:w-auto"
           >
             Resend OTP
           </Button>
@@ -171,7 +186,7 @@ export default function OTPVerification({ phone, onVerified, className = '' }: O
         type="button"
         onClick={verifyOTP}
         disabled={isLoading || !otp || timeLeft === 0}
-        className="w-full"
+        className="w-full h-10 sm:h-9"
       >
         {isLoading ? 'Verifying...' : 'Verify OTP'}
       </Button>
