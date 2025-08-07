@@ -94,8 +94,8 @@ export default function BookingForm() {
       })
 
       if (response.ok) {
-        const booking = await response.json()
-        toast.success(`Booking created successfully! Booking ID: ${booking.id}`)
+        await response.json()
+        toast.success('Your Ambulette booking is successful')
         setFormData({
           name: '',
           phone: '',

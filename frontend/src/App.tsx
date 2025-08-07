@@ -1,8 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
-import { Ambulance, Users, Home, Menu, X } from 'lucide-react'
+import { Ambulance, Users, Home, Menu, X, Calendar } from 'lucide-react'
 import { useState } from 'react'
 import BookingForm from './components/BookingForm'
 import AdminDashboard from './components/AdminDashboard'
+import Bookings from './components/Bookings'
 import { AuthProvider } from './contexts/AuthContext'
 import './App.css'
 
@@ -31,6 +32,13 @@ function App() {
                   >
                     <Home className="h-4 w-4 mr-1" />
                     Book Ambulette
+                  </Link>
+                  <Link
+                    to="/bookings"
+                    className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                  >
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Bookings
                   </Link>
                   <Link
                     to="/admin"
@@ -69,6 +77,14 @@ function App() {
                       Book Ambulette
                     </Link>
                     <Link
+                      to="/bookings"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                    >
+                      <Calendar className="h-5 w-5 mr-2" />
+                      Bookings
+                    </Link>
+                    <Link
                       to="/admin"
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
@@ -85,6 +101,7 @@ function App() {
           <main className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
             <Routes>
               <Route path="/" element={<BookingForm />} />
+              <Route path="/bookings" element={<Bookings />} />
               <Route path="/admin" element={<AdminDashboard />} />
             </Routes>
           </main>
