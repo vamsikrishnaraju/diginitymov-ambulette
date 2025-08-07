@@ -411,8 +411,14 @@ async def get_bookings(current_user: str = Depends(verify_token)):
         
         bookings = []
         for row in results:
+            # Ensure ID is properly converted to string
+            booking_id = str(row[0]) if row[0] is not None else None
+            if booking_id is None:
+                print(f"Warning: Booking ID is None for row")
+                continue
+            
             booking = Booking(
-                id=row[0],
+                id=booking_id,
                 name=row[1],
                 phone=row[2],
                 email=row[3],
@@ -420,10 +426,10 @@ async def get_bookings(current_user: str = Depends(verify_token)):
                 from_date=row[5],
                 to_date=row[6],
                 status=row[7],
-                assigned_ambulance_id=row[8],
+                assigned_ambulance_id=str(row[8]) if row[8] is not None else None,
                 created_at=row[9],
-                pickup_location=Location(address=row[10], latitude=row[11], longitude=row[12]),
-                drop_location=Location(address=row[13], latitude=row[14], longitude=row[15])
+                pickup_location=Location(address=row[10], latitude=float(row[11]), longitude=float(row[12])),
+                drop_location=Location(address=row[13], latitude=float(row[14]), longitude=float(row[15]))
             )
             bookings.append(booking)
         
@@ -450,8 +456,13 @@ async def get_booking(booking_id: str):
         if not result:
             raise HTTPException(status_code=404, detail="Booking not found")
         
+        # Ensure ID is properly converted to string
+        booking_id = str(result[0]) if result[0] is not None else None
+        if booking_id is None:
+            raise HTTPException(status_code=500, detail="Booking ID is missing from database")
+        
         booking = Booking(
-            id=result[0],
+            id=booking_id,
             name=result[1],
             phone=result[2],
             email=result[3],
@@ -459,10 +470,10 @@ async def get_booking(booking_id: str):
             from_date=result[5],
             to_date=result[6],
             status=result[7],
-            assigned_ambulance_id=result[8],
+            assigned_ambulance_id=str(result[8]) if result[8] is not None else None,
             created_at=result[9],
-            pickup_location=Location(address=result[10], latitude=result[11], longitude=result[12]),
-            drop_location=Location(address=result[13], latitude=result[14], longitude=result[15])
+            pickup_location=Location(address=result[10], latitude=float(result[11]), longitude=float(result[12])),
+            drop_location=Location(address=result[13], latitude=float(result[14]), longitude=float(result[15]))
         )
         
         return booking
@@ -498,24 +509,37 @@ async def get_bookings_by_phone(verify_request: PhoneVerifyRequest):
             ORDER BY b.created_at DESC
         """, (verify_request.phone,))
         results = await cursor.fetchall()
-        
+        print(f"Query results: {results}")
         bookings = []
-        for row in results:
-            booking = Booking(
-                id=row[0],
-                name=row[1],
-                phone=row[2],
-                email=row[3],
-                health_condition=row[4],
-                from_date=row[5],
-                to_date=row[6],
-                status=row[7],
-                assigned_ambulance_id=row[8],
-                created_at=row[9],
-                pickup_location=Location(address=row[10], latitude=row[11], longitude=row[12]),
-                drop_location=Location(address=row[13], latitude=row[14], longitude=row[15])
-            )
-            bookings.append(booking)
+        for i, row in enumerate(results):
+            print(f"Processing row {i}: {row}")
+            try:
+                # Ensure ID is properly converted to string
+                booking_id = str(row[0]) if row[0] is not None else None
+                if booking_id is None:
+                    print(f"Warning: Booking ID is None for row {i}")
+                    continue
+                
+                booking = Booking(
+                    id=booking_id,
+                    name=row[1],
+                    phone=row[2],
+                    email=row[3],
+                    health_condition=row[4],
+                    from_date=row[5],
+                    to_date=row[6],
+                    status=row[7],
+                    assigned_ambulance_id=str(row[8]) if row[8] is not None else None,
+                    created_at=row[9],
+                    pickup_location=Location(address=row[10], latitude=float(row[11]), longitude=float(row[12])),
+                    drop_location=Location(address=row[13], latitude=float(row[14]), longitude=float(row[15]))
+                )
+                bookings.append(booking)
+            except Exception as e:
+                print(f"Error creating booking from row {i}: {e}")
+                print(f"Row data: {row}")
+                print(f"Row types: {[type(val) for val in row]}")
+                raise
         
         return bookings
     finally:
