@@ -13,7 +13,7 @@ import psycopg
 import os
 from contextlib import asynccontextmanager
 
-DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL") or os.getenv("FLY_POSTGRES_URL") or "postgresql://postgres:postgres@localhost:5432/diginitymov_ambulette"
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL") or os.getenv("FLY_POSTGRES_URL") or "postgresql://digimov_admin:digimovdbpwd@localhost:5432/diginitymov_ambulette"
 
 async def get_db_connection():
     try:
@@ -25,7 +25,9 @@ async def get_db_connection():
 async def init_database():
     """Initialize database with schema if not exists"""
     try:
+        print(f"Connecting to database with URL: {DATABASE_URL}")
         conn = await get_db_connection()
+        print("Database connection established successfully")
         
         result = await conn.execute("""
             SELECT EXISTS (
@@ -35,18 +37,75 @@ async def init_database():
             );
         """)
         tables_exist = await result.fetchone()
+        print(f"Tables exist check result: {tables_exist[0]}")
         
         if not tables_exist[0]:
-            schema_path = os.path.join(os.path.dirname(__file__), "..", "..", "database_schema.sql")
-            if os.path.exists(schema_path):
-                with open(schema_path, 'r') as f:
-                    schema_sql = f.read()
+            # Try multiple possible paths for the schema file
+            possible_paths = [
+                os.path.join(os.path.dirname(__file__), "..", "..", "database_schema.sql"),
+                os.path.join(os.path.dirname(__file__), "..", "database_schema.sql"),
+                "database_schema.sql",
+                os.path.join(os.getcwd(), "database_schema.sql")
+            ]
+            
+            schema_sql = None
+            for schema_path in possible_paths:
+                if os.path.exists(schema_path):
+                    print(f"Found schema file at: {schema_path}")
+                    with open(schema_path, 'r') as f:
+                        schema_sql = f.read()
+                    break
+            
+            if schema_sql:
+                # Use psql to execute the schema file directly
+                import subprocess
+                import tempfile
                 
-                await conn.execute(schema_sql)
-                await conn.commit()
-                print("Database schema initialized successfully")
+                try:
+                    # Create a temporary file with the schema
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as temp_file:
+                        temp_file.write(schema_sql)
+                        temp_file_path = temp_file.name
+                    
+                    # Execute the schema using psql
+                    env = os.environ.copy()
+                    env['PGPASSWORD'] = 'digimovdbpwd'  # Set password from DATABASE_URL
+                    
+                    result = subprocess.run([
+                        'psql', 
+                        '-h', 'localhost',
+                        '-U', 'digimov_admin',
+                        '-d', 'diginitymov_ambulette',
+                        '-f', temp_file_path
+                    ], capture_output=True, text=True, env=env)
+                    
+                    # Clean up temp file
+                    os.unlink(temp_file_path)
+                    
+                    if result.returncode == 0:
+                        print("Database schema initialized successfully using psql")
+                    else:
+                        print(f"psql error: {result.stderr}")
+                        # Fallback to direct execution
+                        await conn.execute(schema_sql)
+                        await conn.commit()
+                        print("Database schema initialized successfully using direct execution")
+                        
+                except Exception as e:
+                    print(f"Error executing schema: {e}")
+                    # Try direct execution as last resort
+                    try:
+                        await conn.execute(schema_sql)
+                        await conn.commit()
+                        print("Database schema initialized successfully using direct execution")
+                    except Exception as e2:
+                        print(f"Direct execution also failed: {e2}")
+                        await conn.rollback()
             else:
-                print("Schema file not found, skipping initialization")
+                print("Schema file not found in any of the expected locations:")
+                for path in possible_paths:
+                    print(f"  - {path}")
+                print("Skipping initialization")
         else:
             print("Database schema already exists, skipping initialization")
             
