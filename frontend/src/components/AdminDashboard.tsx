@@ -811,57 +811,54 @@ export default function AdminDashboard() {
 
   return (
     <SidebarProvider>
-      <div className="flex flex-col h-screen w-full">
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-white z-10">
-          <SidebarTrigger className="-ml-1" />
-          <div className="flex flex-1 items-center justify-between">
-            <h1 className="text-xl font-semibold">
-              {menuItems.find(item => item.key === activeMenuItem)?.label || 'Dashboard'}
-            </h1>
-            <Button onClick={fetchData} variant="outline" size="sm">
-              Refresh Data
-            </Button>
-          </div>
-        </header>
-        
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar>
-            <SidebarContent>
-              <SidebarGroup>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {menuItems.map((item) => (
-                      <SidebarMenuItem key={item.key}>
-                        <SidebarMenuButton
-                          isActive={activeMenuItem === item.key}
-                          onClick={() => setActiveMenuItem(item.key)}
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            </SidebarContent>
-            <SidebarFooter className="border-t border-sidebar-border">
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton onClick={logout}>
-                    <LogOut className="h-4 w-4" />
-                    <span>Logout</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
-          </Sidebar>
-          <SidebarInset>
-            <main className="flex-1 overflow-auto p-4">
-              {renderContent()}
-            </main>
-          </SidebarInset>
-        </div>
+      <div className="flex h-[calc(100vh-4rem)] w-full">
+        <Sidebar>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {menuItems.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton
+                        isActive={activeMenuItem === item.key}
+                        onClick={() => setActiveMenuItem(item.key)}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarFooter className="border-t border-sidebar-border">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={logout}>
+                  <LogOut className="h-4 w-4" />
+                  <span>Logout</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </Sidebar>
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-white z-10">
+            <SidebarTrigger className="-ml-1" />
+            <div className="flex flex-1 items-center justify-between">
+              <h1 className="text-xl font-semibold">
+                {menuItems.find(item => item.key === activeMenuItem)?.label || 'Dashboard'}
+              </h1>
+              <Button onClick={fetchData} variant="outline" size="sm">
+                Refresh Data
+              </Button>
+            </div>
+          </header>
+          <main className="flex-1 overflow-auto p-4">
+            {renderContent()}
+          </main>
+        </SidebarInset>
       </div>
     </SidebarProvider>
   )

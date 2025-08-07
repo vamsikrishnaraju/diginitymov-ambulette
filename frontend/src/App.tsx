@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom'
 import { Ambulance, Users, Home, Menu, X, Calendar } from 'lucide-react'
 import { useState } from 'react'
 import BookingForm from './components/BookingForm'
@@ -10,6 +10,8 @@ import './App.css'
 function NavigationContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { isAuthenticated } = useAuth()
+  const location = useLocation()
+  const isAdminRoute = location.pathname === '/admin'
 
   return (
         <div className="min-h-screen bg-gray-50">
@@ -105,7 +107,7 @@ function NavigationContent() {
             </div>
           </nav>
 
-        <main className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
+        <main className={isAdminRoute ? '' : 'max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8'}>
           <Routes>
             <Route path="/" element={<BookingForm />} />
             <Route path="/bookings" element={<Bookings />} />
