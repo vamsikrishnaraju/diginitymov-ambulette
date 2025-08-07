@@ -466,6 +466,58 @@ async def get_booking(booking_id: str):
     finally:
         await conn.close()
 
+@app.post("/api/bookings/by-phone", response_model=List[Booking])
+async def get_bookings_by_phone(verify_request: OTPVerifyRequest):
+    conn = await get_db_connection()
+    try:
+        cursor = await conn.execute(
+            "SELECT verified, expires_at FROM otp_verifications WHERE phone = %s AND verified = true ORDER BY verified_at DESC LIMIT 1",
+            (verify_request.phone,)
+        )
+        result = await cursor.fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=400, detail="Phone number must be verified with OTP before viewing bookings")
+        
+        verified, expires_at = result
+        if datetime.now(timezone.utc) > expires_at:
+            raise HTTPException(status_code=400, detail="OTP verification has expired. Please verify again")
+        
+        cursor = await conn.execute("""
+            SELECT b.id, b.name, b.phone, b.email, b.health_condition, b.from_date, b.to_date, b.status, 
+                   b.assigned_ambulance_id, b.created_at,
+                   pl.address as pickup_address, pl.latitude as pickup_lat, pl.longitude as pickup_lng,
+                   dl.address as drop_address, dl.latitude as drop_lat, dl.longitude as drop_lng
+            FROM bookings b
+            JOIN locations pl ON b.pickup_location_id = pl.id
+            JOIN locations dl ON b.drop_location_id = dl.id
+            WHERE b.phone = %s
+            ORDER BY b.created_at DESC
+        """, (verify_request.phone,))
+        results = await cursor.fetchall()
+        
+        bookings = []
+        for row in results:
+            booking = Booking(
+                id=row[0],
+                name=row[1],
+                phone=row[2],
+                email=row[3],
+                health_condition=row[4],
+                from_date=row[5],
+                to_date=row[6],
+                status=row[7],
+                assigned_ambulance_id=row[8],
+                created_at=row[9],
+                pickup_location=Location(address=row[10], latitude=row[11], longitude=row[12]),
+                drop_location=Location(address=row[13], latitude=row[14], longitude=row[15])
+            )
+            bookings.append(booking)
+        
+        return bookings
+    finally:
+        await conn.close()
+
 @app.post("/api/admin/ambulances", response_model=Ambulance)
 async def create_ambulance(ambulance_request: AmbulanceRequest, current_user: str = Depends(verify_token)):
     conn = await get_db_connection()
