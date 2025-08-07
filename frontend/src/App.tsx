@@ -4,15 +4,14 @@ import { useState } from 'react'
 import BookingForm from './components/BookingForm'
 import AdminDashboard from './components/AdminDashboard'
 import Bookings from './components/Bookings'
-import { AuthProvider } from './contexts/AuthContext'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
 import './App.css'
 
-function App() {
+function NavigationContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const { isAuthenticated } = useAuth()
 
   return (
-    <AuthProvider>
-      <Router>
         <div className="min-h-screen bg-gray-50">
           <nav className="bg-white shadow-lg">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -26,20 +25,24 @@ function App() {
                 </div>
                 
                 <div className="hidden md:flex items-center space-x-4">
-                  <Link
-                    to="/"
-                    className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-                  >
-                    <Home className="h-4 w-4 mr-1" />
-                    Book Ambulette
-                  </Link>
-                  <Link
-                    to="/bookings"
-                    className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-                  >
-                    <Calendar className="h-4 w-4 mr-1" />
-                    Bookings
-                  </Link>
+                  {!isAuthenticated && (
+                    <>
+                      <Link
+                        to="/"
+                        className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                      >
+                        <Home className="h-4 w-4 mr-1" />
+                        Book Ambulette
+                      </Link>
+                      <Link
+                        to="/bookings"
+                        className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                      >
+                        <Calendar className="h-4 w-4 mr-1" />
+                        Bookings
+                      </Link>
+                    </>
+                  )}
                   <Link
                     to="/admin"
                     className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
@@ -68,22 +71,26 @@ function App() {
               {isMobileMenuOpen && (
                 <div className="md:hidden">
                   <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">
-                    <Link
-                      to="/"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-                    >
-                      <Home className="h-5 w-5 mr-2" />
-                      Book Ambulette
-                    </Link>
-                    <Link
-                      to="/bookings"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-                    >
-                      <Calendar className="h-5 w-5 mr-2" />
-                      Bookings
-                    </Link>
+                    {!isAuthenticated && (
+                      <>
+                        <Link
+                          to="/"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                        >
+                          <Home className="h-5 w-5 mr-2" />
+                          Book Ambulette
+                        </Link>
+                        <Link
+                          to="/bookings"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                        >
+                          <Calendar className="h-5 w-5 mr-2" />
+                          Bookings
+                        </Link>
+                      </>
+                    )}
                     <Link
                       to="/admin"
                       onClick={() => setIsMobileMenuOpen(false)}
@@ -98,14 +105,22 @@ function App() {
             </div>
           </nav>
 
-          <main className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
-            <Routes>
-              <Route path="/" element={<BookingForm />} />
-              <Route path="/bookings" element={<Bookings />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-            </Routes>
-          </main>
-        </div>
+        <main className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
+          <Routes>
+            <Route path="/" element={<BookingForm />} />
+            <Route path="/bookings" element={<Bookings />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+          </Routes>
+        </main>
+      </div>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <NavigationContent />
       </Router>
     </AuthProvider>
   )
