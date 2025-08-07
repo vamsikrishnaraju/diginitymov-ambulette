@@ -155,11 +155,12 @@ export default function OTPVerification({ phone, onVerified, className = '' }: O
           onChange={(e) => setOtp(e.target.value)}
           placeholder="Enter 6-digit OTP"
           maxLength={6}
-          className="text-center text-lg tracking-widest"
+          className="text-center text-lg tracking-widest h-12 sm:h-10"
+          inputMode="numeric"
         />
       </div>
       
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center space-x-1 text-sm text-gray-600">
           <Clock className="h-3 w-3" />
           <span>
@@ -174,6 +175,7 @@ export default function OTPVerification({ phone, onVerified, className = '' }: O
             size="sm"
             onClick={resendOTP}
             disabled={isLoading}
+            className="w-full sm:w-auto"
           >
             Resend OTP
           </Button>
@@ -184,7 +186,7 @@ export default function OTPVerification({ phone, onVerified, className = '' }: O
         type="button"
         onClick={verifyOTP}
         disabled={isLoading || !otp || timeLeft === 0}
-        className="w-full"
+        className="w-full h-10 sm:h-9"
       >
         {isLoading ? 'Verifying...' : 'Verify OTP'}
       </Button>

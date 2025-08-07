@@ -203,19 +203,19 @@ export default function MapSelector({ onLocationSelect, onClose, title }: MapSel
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <Card className="w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-4xl mx-auto max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between p-3 sm:p-6">
+          <CardTitle className="flex items-center text-lg sm:text-xl">
             <MapPin className="h-5 w-5 mr-2" />
             {title}
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="p-4 border-b">
+          <div className="p-3 sm:p-4 border-b">
             <div className="space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -225,7 +225,7 @@ export default function MapSelector({ onLocationSelect, onClose, title }: MapSel
                   placeholder="Search for a location..."
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-10 sm:h-9"
                 />
               </div>
               <Button
@@ -234,17 +234,17 @@ export default function MapSelector({ onLocationSelect, onClose, title }: MapSel
                 size="sm"
                 onClick={useCurrentLocation}
                 disabled={isGettingLocation}
-                className="w-full"
+                className="w-full h-10 sm:h-9 text-sm"
               >
                 <Navigation className="h-4 w-4 mr-2" />
                 {isGettingLocation ? 'Getting location...' : 'Use Current Location'}
               </Button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 mt-2 text-center sm:text-left">
               Search for an address, use current location, or click on the map to select a location
             </p>
           </div>
-          <div className="h-96 w-full relative">
+          <div className="h-64 sm:h-80 md:h-96 w-full relative">
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
                 <div className="text-center">
@@ -257,14 +257,14 @@ export default function MapSelector({ onLocationSelect, onClose, title }: MapSel
           </div>
           
           {selectedLocation && (
-            <div className="p-4 border-t">
+            <div className="p-3 sm:p-4 border-t">
               <p className="text-sm text-gray-600 mb-3">Selected location:</p>
-              <p className="font-medium mb-4">{selectedLocation.address}</p>
-              <div className="flex gap-2">
-                <Button onClick={handleConfirm} className="flex-1">
+              <p className="font-medium mb-4 text-sm sm:text-base break-words">{selectedLocation.address}</p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button onClick={handleConfirm} className="flex-1 h-10 sm:h-9">
                   Confirm Location
                 </Button>
-                <Button variant="outline" onClick={onClose}>
+                <Button variant="outline" onClick={onClose} className="h-10 sm:h-9">
                   Cancel
                 </Button>
               </div>
@@ -272,7 +272,7 @@ export default function MapSelector({ onLocationSelect, onClose, title }: MapSel
           )}
           
           {!selectedLocation && !isLoading && (
-            <div className="p-4 border-t">
+            <div className="p-3 sm:p-4 border-t">
               <p className="text-sm text-gray-600 text-center">
                 Search above or click on the map to select a location
               </p>

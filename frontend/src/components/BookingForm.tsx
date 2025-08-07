@@ -118,8 +118,8 @@ export default function BookingForm() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <Card>
+    <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+      <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Calendar className="h-5 w-5 mr-2" />
@@ -129,11 +129,11 @@ export default function BookingForm() {
             Fill out the form below to book an ambulette. No registration required.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-6">
+        <CardContent className="p-4 sm:p-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="name" className="flex items-center">
+                <Label htmlFor="name" className="flex items-center text-sm font-medium">
                   <User className="h-4 w-4 mr-1" />
                   Name *
                 </Label>
@@ -144,10 +144,11 @@ export default function BookingForm() {
                   onChange={handleInputChange}
                   placeholder="Enter your full name"
                   required
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone" className="flex items-center">
+                <Label htmlFor="phone" className="flex items-center text-sm font-medium">
                   <Phone className="h-4 w-4 mr-1" />
                   Phone Number *
                 </Label>
@@ -159,6 +160,7 @@ export default function BookingForm() {
                   onChange={handleInputChange}
                   placeholder="+1234567890"
                   required
+                  className="w-full"
                 />
                 {formData.phone && (
                   <OTPVerification
@@ -170,7 +172,7 @@ export default function BookingForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="flex items-center">
+              <Label htmlFor="email" className="flex items-center text-sm font-medium">
                 <Mail className="h-4 w-4 mr-1" />
                 Email (Optional)
               </Label>
@@ -181,11 +183,12 @@ export default function BookingForm() {
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="your.email@example.com"
+                className="w-full"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="health_condition" className="flex items-center">
+              <Label htmlFor="health_condition" className="flex items-center text-sm font-medium">
                 <FileText className="h-4 w-4 mr-1" />
                 Health Condition (Optional)
               </Label>
@@ -196,21 +199,22 @@ export default function BookingForm() {
                 onChange={handleInputChange}
                 placeholder="Please describe any relevant health conditions, mobility requirements, or special medical needs..."
                 rows={3}
+                className="w-full resize-none"
               />
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="flex items-center">
+                <Label className="flex items-center text-sm font-medium">
                   <MapPin className="h-4 w-4 mr-1" />
                   Pickup Location *
                 </Label>
                 {formData.pickup_location ? (
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
+                  <div className="p-3 sm:p-4 bg-green-50 border border-green-200 rounded-md">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-green-800 mb-1">Selected Pickup Location:</p>
-                        <p className="text-sm text-green-700">{formData.pickup_location.address}</p>
+                        <p className="text-sm text-green-700 break-words">{formData.pickup_location.address}</p>
                         <p className="text-xs text-green-600 mt-1">
                           Coordinates: {formData.pickup_location.latitude.toFixed(6)}, {formData.pickup_location.longitude.toFixed(6)}
                         </p>
@@ -219,7 +223,7 @@ export default function BookingForm() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="ml-3"
+                        className="shrink-0 w-full sm:w-auto"
                         onClick={() => setShowPickupMap(true)}
                       >
                         Edit
@@ -231,28 +235,28 @@ export default function BookingForm() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full h-12 border-dashed border-2 border-gray-300 hover:border-gray-400"
+                      className="w-full h-12 sm:h-14 border-dashed border-2 border-gray-300 hover:border-gray-400 text-sm sm:text-base"
                       onClick={() => setShowPickupMap(true)}
                     >
                       <MapPin className="h-5 w-5 mr-2" />
                       Select Pickup Location (Required)
                     </Button>
-                    <p className="text-xs text-gray-500">Click to open map and select your pickup location</p>
+                    <p className="text-xs text-gray-500 text-center">Click to open map and select your pickup location</p>
                   </div>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label className="flex items-center">
+                <Label className="flex items-center text-sm font-medium">
                   <MapPin className="h-4 w-4 mr-1" />
                   Drop Location *
                 </Label>
                 {formData.drop_location ? (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
+                  <div className="p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-md">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-blue-800 mb-1">Selected Drop Location:</p>
-                        <p className="text-sm text-blue-700">{formData.drop_location.address}</p>
+                        <p className="text-sm text-blue-700 break-words">{formData.drop_location.address}</p>
                         <p className="text-xs text-blue-600 mt-1">
                           Coordinates: {formData.drop_location.latitude.toFixed(6)}, {formData.drop_location.longitude.toFixed(6)}
                         </p>
@@ -261,7 +265,7 @@ export default function BookingForm() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="ml-3"
+                        className="shrink-0 w-full sm:w-auto"
                         onClick={() => setShowDropMap(true)}
                       >
                         Edit
@@ -273,21 +277,21 @@ export default function BookingForm() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full h-12 border-dashed border-2 border-gray-300 hover:border-gray-400"
+                      className="w-full h-12 sm:h-14 border-dashed border-2 border-gray-300 hover:border-gray-400 text-sm sm:text-base"
                       onClick={() => setShowDropMap(true)}
                     >
                       <MapPin className="h-5 w-5 mr-2" />
                       Select Drop Location (Required)
                     </Button>
-                    <p className="text-xs text-gray-500">Click to open map and select your drop-off location</p>
+                    <p className="text-xs text-gray-500 text-center">Click to open map and select your drop-off location</p>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="from_date">From Date & Time *</Label>
+                <Label htmlFor="from_date" className="text-sm font-medium">From Date & Time *</Label>
                 <Input
                   id="from_date"
                   name="from_date"
@@ -295,10 +299,11 @@ export default function BookingForm() {
                   value={formData.from_date}
                   onChange={handleInputChange}
                   required
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="to_date">To Date & Time *</Label>
+                <Label htmlFor="to_date" className="text-sm font-medium">To Date & Time *</Label>
                 <Input
                   id="to_date"
                   name="to_date"
@@ -306,11 +311,12 @@ export default function BookingForm() {
                   value={formData.to_date}
                   onChange={handleInputChange}
                   required
+                  className="w-full"
                 />
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full h-12 sm:h-10 text-base sm:text-sm" disabled={isSubmitting}>
               {isSubmitting ? 'Booking...' : 'Book Ambulette'}
             </Button>
           </form>
