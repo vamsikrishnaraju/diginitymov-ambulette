@@ -19,7 +19,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger,
   SidebarInset,
 } from '@/components/ui/sidebar'
 
@@ -846,12 +845,9 @@ export default function AdminDashboard() {
           </Sidebar>
           <SidebarInset>
             <div className="flex items-center justify-between mb-4 p-4 border-b">
-              <div className="flex items-center gap-2">
-                <SidebarTrigger className="-ml-1" />
-                <h2 className="text-lg font-medium">
-                  {menuItems.find(item => item.key === activeMenuItem)?.label || 'Dashboard'}
-                </h2>
-              </div>
+              <h2 className="text-lg font-medium">
+                {menuItems.find(item => item.key === activeMenuItem)?.label || 'Dashboard'}
+              </h2>
               <Button onClick={fetchData} variant="outline" size="sm">
                 Refresh Data
               </Button>
