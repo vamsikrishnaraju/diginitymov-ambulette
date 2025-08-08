@@ -811,13 +811,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="flex items-center justify-between mb-4 py-4">
-        <h1 className="text-xl font-semibold">Admin Dashboard</h1>
-        <Button onClick={fetchData} variant="outline" size="sm">
-          Refresh Data
-        </Button>
-      </div>
-      
       <SidebarProvider>
         <div className="flex h-[calc(100vh-8rem)] w-full peer relative">
           <Sidebar variant="inset" className="!relative !inset-auto !h-full !left-auto !right-auto">
@@ -859,6 +852,9 @@ export default function AdminDashboard() {
                   {menuItems.find(item => item.key === activeMenuItem)?.label || 'Dashboard'}
                 </h2>
               </div>
+              <Button onClick={fetchData} variant="outline" size="sm">
+                Refresh Data
+              </Button>
             </div>
             <main className="flex-1 overflow-auto p-4">
               {renderContent()}
