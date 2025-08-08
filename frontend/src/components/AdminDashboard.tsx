@@ -810,22 +810,15 @@ export default function AdminDashboard() {
   }
 
   return (
-    <SidebarProvider>
-      {/* Header section moved outside of constrained container */}
-      <div className="flex items-center justify-between mb-4 py-4 px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-2">
-          <SidebarTrigger className="-ml-1" />
-          <h1 className="text-xl font-semibold">
-            {menuItems.find(item => item.key === activeMenuItem)?.label || 'Dashboard'}
-          </h1>
-        </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex items-center justify-between mb-4 py-4">
+        <h1 className="text-xl font-semibold">Admin Dashboard</h1>
         <Button onClick={fetchData} variant="outline" size="sm">
           Refresh Data
         </Button>
       </div>
       
-      {/* Sidebar and content container with constrained width */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <SidebarProvider>
         <div className="flex h-[calc(100vh-8rem)] w-full peer">
           <Sidebar variant="inset">
             <SidebarContent>
@@ -859,12 +852,20 @@ export default function AdminDashboard() {
             </SidebarFooter>
           </Sidebar>
           <SidebarInset>
+            <div className="flex items-center justify-between mb-4 p-4 border-b">
+              <div className="flex items-center gap-2">
+                <SidebarTrigger className="-ml-1" />
+                <h2 className="text-lg font-medium">
+                  {menuItems.find(item => item.key === activeMenuItem)?.label || 'Dashboard'}
+                </h2>
+              </div>
+            </div>
             <main className="flex-1 overflow-auto p-4">
               {renderContent()}
             </main>
           </SidebarInset>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </div>
   )
 }
