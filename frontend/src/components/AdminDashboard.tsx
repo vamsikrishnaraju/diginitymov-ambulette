@@ -811,23 +811,23 @@ export default function AdminDashboard() {
 
   return (
     <SidebarProvider>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header section moved above sidebar/content */}
-        <div className="flex items-center justify-between mb-4 py-4">
-          <div className="flex items-center gap-2">
-            <SidebarTrigger className="-ml-1" />
-            <h1 className="text-xl font-semibold">
-              {menuItems.find(item => item.key === activeMenuItem)?.label || 'Dashboard'}
-            </h1>
-          </div>
-          <Button onClick={fetchData} variant="outline" size="sm">
-            Refresh Data
-          </Button>
+      {/* Header section moved outside of constrained container */}
+      <div className="flex items-center justify-between mb-4 py-4 px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-2">
+          <SidebarTrigger className="-ml-1" />
+          <h1 className="text-xl font-semibold">
+            {menuItems.find(item => item.key === activeMenuItem)?.label || 'Dashboard'}
+          </h1>
         </div>
-        
-        {/* Sidebar and content below header */}
+        <Button onClick={fetchData} variant="outline" size="sm">
+          Refresh Data
+        </Button>
+      </div>
+      
+      {/* Sidebar and content container with constrained width */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-[calc(100vh-8rem)] w-full peer">
-          <Sidebar>
+          <Sidebar variant="inset">
             <SidebarContent>
               <SidebarGroup>
                 <SidebarGroupContent>
