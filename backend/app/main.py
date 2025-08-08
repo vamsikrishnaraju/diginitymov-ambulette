@@ -22,13 +22,113 @@ async def get_db_connection():
         print(f"Database connection failed: {e}")
         raise HTTPException(status_code=503, detail="Database service unavailable")
 
+async def check_and_create_missing_tables(conn):
+    """Check for missing tables and create them if needed"""
+    required_tables = [
+        'employees', 'attendance', 'expenses', 'locations', 'ambulances', 
+        'drivers', 'bookings', 'driver_assignments', 'admin_users', 'otp_verifications'
+    ]
+    
+    # Create schema_version table if it doesn't exist
+    try:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS schema_version (
+                id SERIAL PRIMARY KEY,
+                version VARCHAR(50) NOT NULL,
+                applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        await conn.commit()
+    except Exception as e:
+        print(f"Error creating schema_version table: {e}")
+    
+    for table in required_tables:
+        try:
+            result = await conn.execute(f"""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = '{table}'
+                );
+            """)
+            exists = await result.fetchone()
+            
+            if not exists[0]:
+                print(f"Creating missing table: {table}")
+                await create_missing_table(conn, table)
+        except Exception as e:
+            print(f"Error checking table {table}: {e}")
+    
+    # Update schema version
+    try:
+        await conn.execute("""
+            INSERT INTO schema_version (version) VALUES ('1.1.0')
+            ON CONFLICT DO NOTHING;
+        """)
+        await conn.commit()
+    except Exception as e:
+        print(f"Error updating schema version: {e}")
+
+async def create_missing_table(conn, table_name):
+    """Create a specific missing table"""
+    table_definitions = {
+        'employees': """
+            CREATE TABLE employees (
+                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                name VARCHAR(255) NOT NULL,
+                phone VARCHAR(20) UNIQUE NOT NULL,
+                email VARCHAR(255),
+                position VARCHAR(100) NOT NULL,
+                status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        """,
+        'attendance': """
+            CREATE TABLE attendance (
+                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+                check_in_time TIMESTAMP WITH TIME ZONE,
+                check_out_time TIMESTAMP WITH TIME ZONE,
+                date DATE NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(employee_id, date)
+            );
+        """,
+        'expenses': """
+            CREATE TABLE expenses (
+                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                category VARCHAR(20) NOT NULL CHECK (category IN ('ambulette', 'employee')),
+                type VARCHAR(20) NOT NULL CHECK (type IN ('fuel', 'maintenance', 'other', 'salary', 'bonus')),
+                amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
+                description TEXT,
+                bill_file_path VARCHAR(500),
+                employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+                ambulance_id UUID REFERENCES ambulances(id) ON DELETE SET NULL,
+                expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        """
+    }
+    
+    if table_name in table_definitions:
+        try:
+            await conn.execute(table_definitions[table_name])
+            await conn.commit()
+            print(f"Successfully created table: {table_name}")
+        except Exception as e:
+            print(f"Error creating table {table_name}: {e}")
+
 async def init_database():
-    """Initialize database with schema if not exists"""
+    """Initialize database with schema and handle migrations"""
     try:
         print(f"Connecting to database with URL: {DATABASE_URL}")
         conn = await get_db_connection()
         print("Database connection established successfully")
         
+        # Check if database schema exists
         result = await conn.execute("""
             SELECT EXISTS (
                 SELECT FROM information_schema.tables 
@@ -39,75 +139,84 @@ async def init_database():
         tables_exist = await result.fetchone()
         print(f"Tables exist check result: {tables_exist[0]}")
         
-        if not tables_exist[0]:
-            # Try multiple possible paths for the schema file
-            possible_paths = [
-                os.path.join(os.path.dirname(__file__), "..", "..", "database_schema.sql"),
-                os.path.join(os.path.dirname(__file__), "..", "database_schema.sql"),
-                "database_schema.sql",
-                os.path.join(os.getcwd(), "database_schema.sql")
-            ]
-            
-            schema_sql = None
-            for schema_path in possible_paths:
-                if os.path.exists(schema_path):
-                    print(f"Found schema file at: {schema_path}")
-                    with open(schema_path, 'r') as f:
-                        schema_sql = f.read()
-                    break
-            
-            if schema_sql:
-                # Use psql to execute the schema file directly
-                import subprocess
-                import tempfile
-                
+        # Always try to apply schema updates to handle new tables/columns
+        schema_sql = None
+        possible_paths = [
+            os.path.join(os.path.dirname(__file__), "..", "..", "database_schema.sql"),
+            os.path.join(os.path.dirname(__file__), "..", "database_schema.sql"),
+            "database_schema.sql",
+            os.path.join(os.getcwd(), "database_schema.sql")
+        ]
+        
+        for schema_path in possible_paths:
+            if os.path.exists(schema_path):
+                print(f"Found schema file at: {schema_path}")
+                with open(schema_path, 'r') as f:
+                    schema_sql = f.read()
+                break
+        
+        if schema_sql:
+            # Use a more robust approach - execute the entire schema as one transaction
+            # and handle errors gracefully
+            try:
+                print("Executing database schema...")
+                await conn.execute(schema_sql)
+                await conn.commit()
+                print("Database schema executed successfully")
+            except Exception as e:
+                print(f"Error executing schema: {e}")
+                # If the full schema fails, try to rollback and continue
                 try:
-                    # Create a temporary file with the schema
-                    with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as temp_file:
-                        temp_file.write(schema_sql)
-                        temp_file_path = temp_file.name
-                    
-                    # Execute the schema using psql
-                    env = os.environ.copy()
-                    env['PGPASSWORD'] = 'digimovdbpwd'  # Set password from DATABASE_URL
-                    
-                    result = subprocess.run([
-                        'psql', 
-                        '-h', 'localhost',
-                        '-U', 'digimov_admin',
-                        '-d', 'diginitymov_ambulette',
-                        '-f', temp_file_path
-                    ], capture_output=True, text=True, env=env)
-                    
-                    # Clean up temp file
-                    os.unlink(temp_file_path)
-                    
-                    if result.returncode == 0:
-                        print("Database schema initialized successfully using psql")
-                    else:
-                        print(f"psql error: {result.stderr}")
-                        # Fallback to direct execution
-                        await conn.execute(schema_sql)
-                        await conn.commit()
-                        print("Database schema initialized successfully using direct execution")
-                        
-                except Exception as e:
-                    print(f"Error executing schema: {e}")
-                    # Try direct execution as last resort
+                    await conn.rollback()
+                except:
+                    pass
+                
+                # Fallback: try to create essential tables individually
+                print("Attempting to create essential tables individually...")
+                
+                # Reset transaction state
+                try:
+                    await conn.rollback()
+                except:
+                    pass
+                
+                essential_operations = [
+                    ("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";", "Extension"),
+                    ("DO $$ BEGIN CREATE TYPE booking_status AS ENUM ('pending', 'assigned', 'in_progress', 'completed', 'cancelled'); EXCEPTION WHEN duplicate_object THEN null; END $$;", "Booking status type"),
+                    ("DO $$ BEGIN CREATE TYPE ambulance_status AS ENUM ('available', 'assigned', 'maintenance', 'out_of_service'); EXCEPTION WHEN duplicate_object THEN null; END $$;", "Ambulance status type"),
+                    ("DO $$ BEGIN CREATE TYPE driver_status AS ENUM ('available', 'assigned', 'off_duty', 'on_leave'); EXCEPTION WHEN duplicate_object THEN null; END $$;", "Driver status type")
+                ]
+                
+                for sql, description in essential_operations:
                     try:
-                        await conn.execute(schema_sql)
+                        await conn.execute(sql)
                         await conn.commit()
-                        print("Database schema initialized successfully using direct execution")
-                    except Exception as e2:
-                        print(f"Direct execution also failed: {e2}")
-                        await conn.rollback()
-            else:
-                print("Schema file not found in any of the expected locations:")
-                for path in possible_paths:
-                    print(f"  - {path}")
-                print("Skipping initialization")
+                        print(f"Successfully created: {description}")
+                    except Exception as table_error:
+                        if "already exists" in str(table_error).lower() or "duplicate" in str(table_error).lower():
+                            print(f"{description} already exists, skipping")
+                        else:
+                            print(f"Error creating {description}: {table_error}")
+                            continue
+            
+            print("Database schema initialization/migration completed")
         else:
-            print("Database schema already exists, skipping initialization")
+            print("Schema file not found in any of the expected locations:")
+            for path in possible_paths:
+                print(f"  - {path}")
+            print("Skipping initialization")
+        
+        # Check for missing tables and create them
+        try:
+            await check_and_create_missing_tables(conn)
+        except Exception as e:
+            print(f"Error checking for missing tables: {e}")
+            # Reset transaction state and try again
+            try:
+                await conn.rollback()
+                await check_and_create_missing_tables(conn)
+            except Exception as e2:
+                print(f"Error in second attempt to check missing tables: {e2}")
             
         await conn.close()
     except Exception as e:
