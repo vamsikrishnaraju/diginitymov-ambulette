@@ -15,7 +15,7 @@ function NavigationContent() {
 
   return (
         <div className="min-h-screen bg-gray-50">
-          <nav className="bg-white shadow-lg">
+          <nav className={`bg-white shadow-lg ${isAdminRoute ? 'md:peer-data-[state=collapsed]:ml-2 transition-all duration-200' : ''}`}>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between h-16">
                 <div className="flex items-center">

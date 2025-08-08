@@ -811,7 +811,7 @@ export default function AdminDashboard() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-[calc(100vh-4rem)] w-full">
+      <div className="flex h-[calc(100vh-4rem)] w-full peer">
         <Sidebar>
           <SidebarContent>
             <SidebarGroup>
