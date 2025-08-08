@@ -89,6 +89,33 @@ CREATE TABLE otp_verifications (
 
 CREATE INDEX idx_otp_phone_expires ON otp_verifications(phone, expires_at);
 
+CREATE TABLE employees (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) UNIQUE NOT NULL,
+    email VARCHAR(255),
+    position VARCHAR(100) NOT NULL,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT valid_employee_email CHECK (email IS NULL OR email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+    CONSTRAINT valid_employee_phone CHECK (phone ~* '^\+?[1-9]\d{1,14}$')
+);
+
+CREATE TABLE attendance (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    check_in_time TIMESTAMP WITH TIME ZONE,
+    check_out_time TIMESTAMP WITH TIME ZONE,
+    date DATE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT valid_check_times CHECK (check_out_time IS NULL OR check_out_time > check_in_time),
+    UNIQUE(employee_id, date)
+);
+
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     table_name VARCHAR(50) NOT NULL,
@@ -119,6 +146,14 @@ CREATE INDEX idx_driver_assignments_ambulance ON driver_assignments(ambulance_id
 
 CREATE INDEX idx_locations_coordinates ON locations(latitude, longitude);
 
+CREATE INDEX idx_employees_phone ON employees(phone);
+CREATE INDEX idx_employees_status ON employees(status);
+CREATE INDEX idx_employees_position ON employees(position);
+
+CREATE INDEX idx_attendance_employee ON attendance(employee_id);
+CREATE INDEX idx_attendance_date ON attendance(date);
+CREATE INDEX idx_attendance_check_in ON attendance(check_in_time);
+
 CREATE INDEX idx_admin_users_username ON admin_users(username);
 CREATE INDEX idx_admin_users_active ON admin_users(is_active);
 
@@ -136,6 +171,8 @@ CREATE TRIGGER update_drivers_updated_at BEFORE UPDATE ON drivers FOR EACH ROW E
 CREATE TRIGGER update_bookings_updated_at BEFORE UPDATE ON bookings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_driver_assignments_updated_at BEFORE UPDATE ON driver_assignments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_admin_users_updated_at BEFORE UPDATE ON admin_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_employees_updated_at BEFORE UPDATE ON employees FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_attendance_updated_at BEFORE UPDATE ON attendance FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 INSERT INTO admin_users (username, password_hash, email) VALUES 
 ('admin', 'e3afed0047b08059d0fada10f400c1e5', 'admin@diginitymov.com'),
@@ -222,6 +259,8 @@ COMMENT ON TABLE driver_assignments IS 'Daily assignments of drivers to specific
 COMMENT ON TABLE locations IS 'Geographic locations for pickup and drop-off points';
 COMMENT ON TABLE admin_users IS 'Administrative users with access to the management system';
 COMMENT ON TABLE otp_verifications IS 'One-time password verifications for phone number validation';
+COMMENT ON TABLE employees IS 'Company employees with contact information and positions';
+COMMENT ON TABLE attendance IS 'Daily attendance records for employees with check-in/check-out times';
 COMMENT ON TABLE audit_logs IS 'Audit trail for tracking changes to critical data';
 
 COMMENT ON FUNCTION cleanup_expired_otps() IS 'Removes expired OTP verification records';

@@ -142,6 +142,14 @@ ADMIN_USERS = {
 
 security = HTTPBearer()
 
+employees_db = {}
+attendance_db = {}
+bookings_db = {}
+ambulances_db = {}
+drivers_db = {}
+assignments_db = {}
+otp_storage = {}
+
 class Location(BaseModel):
     address: str
     latitude: float
@@ -209,6 +217,37 @@ class AssignDriverRequest(BaseModel):
 class AssignAmbulanceRequest(BaseModel):
     booking_id: str
     ambulance_id: str
+
+class Employee(BaseModel):
+    id: str
+    name: str
+    phone: str
+    email: Optional[str] = None
+    position: str
+    status: str = "active"
+
+class EmployeeRequest(BaseModel):
+    name: str
+    phone: str
+    email: Optional[str] = None
+    position: str
+
+class EmployeeUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    position: Optional[str] = None
+    status: Optional[str] = None
+
+class Attendance(BaseModel):
+    id: str
+    employee_id: str
+    check_in_time: Optional[datetime] = None
+    check_out_time: Optional[datetime] = None
+    date: date
+
+class AttendanceRequest(BaseModel):
+    employee_id: str
 
 class OTPRequest(BaseModel):
     phone: str
@@ -733,5 +772,292 @@ async def assign_ambulance_to_booking(assignment_request: AssignAmbulanceRequest
         await conn.commit()
         
         return {"message": "Ambulance assigned to booking successfully"}
+    finally:
+        await conn.close()
+
+@app.post("/api/admin/employees", response_model=Employee)
+async def create_employee(employee_request: EmployeeRequest, current_user: str = Depends(verify_token)):
+    try:
+        conn = await get_db_connection()
+        try:
+            employee_id = str(uuid.uuid4())
+            await conn.execute(
+                "INSERT INTO employees (id, name, phone, email, position) VALUES (%s, %s, %s, %s, %s)",
+                (employee_id, employee_request.name, employee_request.phone, employee_request.email, employee_request.position)
+            )
+            await conn.commit()
+            
+            employee = Employee(
+                id=employee_id,
+                name=employee_request.name,
+                phone=employee_request.phone,
+                email=employee_request.email,
+                position=employee_request.position
+            )
+            return employee
+        finally:
+            await conn.close()
+    except:
+        # Fallback to in-memory storage
+        employee_id = str(uuid.uuid4())
+        employee = Employee(
+            id=employee_id,
+            name=employee_request.name,
+            phone=employee_request.phone,
+            email=employee_request.email,
+            position=employee_request.position,
+            status="active"
+        )
+        employees_db[employee_id] = employee
+        return employee
+
+@app.get("/api/admin/employees", response_model=List[Employee])
+async def get_employees(current_user: str = Depends(verify_token)):
+    try:
+        conn = await get_db_connection()
+        try:
+            cursor = await conn.execute("SELECT id, name, phone, email, position, status FROM employees ORDER BY created_at DESC")
+            results = await cursor.fetchall()
+            
+            employees = []
+            for row in results:
+                employee = Employee(
+                    id=row[0],
+                    name=row[1],
+                    phone=row[2],
+                    email=row[3],
+                    position=row[4],
+                    status=row[5]
+                )
+                employees.append(employee)
+            
+            return employees
+        finally:
+            await conn.close()
+    except:
+        # Fallback to in-memory storage
+        return list(employees_db.values())
+
+@app.put("/api/admin/employees/{employee_id}", response_model=Employee)
+async def update_employee(employee_id: str, employee_update: EmployeeUpdateRequest, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        cursor = await conn.execute("SELECT id, name, phone, email, position, status FROM employees WHERE id = %s", (employee_id,))
+        result = await cursor.fetchone()
+        if not result:
+            raise HTTPException(status_code=404, detail="Employee not found")
+        
+        current_employee = Employee(
+            id=result[0],
+            name=result[1],
+            phone=result[2],
+            email=result[3],
+            position=result[4],
+            status=result[5]
+        )
+        
+        update_fields = []
+        update_values = []
+        
+        if employee_update.name is not None:
+            update_fields.append("name = %s")
+            update_values.append(employee_update.name)
+            current_employee.name = employee_update.name
+            
+        if employee_update.phone is not None:
+            update_fields.append("phone = %s")
+            update_values.append(employee_update.phone)
+            current_employee.phone = employee_update.phone
+            
+        if employee_update.email is not None:
+            update_fields.append("email = %s")
+            update_values.append(employee_update.email)
+            current_employee.email = employee_update.email
+            
+        if employee_update.position is not None:
+            update_fields.append("position = %s")
+            update_values.append(employee_update.position)
+            current_employee.position = employee_update.position
+            
+        if employee_update.status is not None:
+            update_fields.append("status = %s")
+            update_values.append(employee_update.status)
+            current_employee.status = employee_update.status
+        
+        if update_fields:
+            update_values.append(employee_id)
+            query = f"UPDATE employees SET {', '.join(update_fields)} WHERE id = %s"
+            await conn.execute(query, update_values)
+            await conn.commit()
+        
+        return current_employee
+    finally:
+        await conn.close()
+
+@app.delete("/api/admin/employees/{employee_id}")
+async def delete_employee(employee_id: str, current_user: str = Depends(verify_token)):
+    try:
+        conn = await get_db_connection()
+        try:
+            cursor = await conn.execute("DELETE FROM employees WHERE id = %s", (employee_id,))
+            if cursor.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Employee not found")
+            await conn.commit()
+            return {"message": "Employee deleted successfully"}
+        finally:
+            await conn.close()
+    except:
+        # Fallback to in-memory storage
+        if employee_id not in employees_db:
+            raise HTTPException(status_code=404, detail="Employee not found")
+        del employees_db[employee_id]
+        attendance_to_delete = [k for k, v in attendance_db.items() if v.employee_id == employee_id]
+        for k in attendance_to_delete:
+            del attendance_db[k]
+        return {"message": "Employee deleted successfully"}
+
+@app.post("/api/admin/attendance/check-in", response_model=Attendance)
+async def check_in_employee(attendance_request: AttendanceRequest, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        today = datetime.now(timezone.utc).date()
+        
+        cursor = await conn.execute("SELECT id FROM employees WHERE id = %s", (attendance_request.employee_id,))
+        if not await cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Employee not found")
+        
+        cursor = await conn.execute(
+            "SELECT id, check_in_time FROM attendance WHERE employee_id = %s AND date = %s",
+            (attendance_request.employee_id, today)
+        )
+        existing_record = await cursor.fetchone()
+        
+        if existing_record and existing_record[1] is not None:
+            raise HTTPException(status_code=400, detail="Employee already checked in today")
+        
+        check_in_time = datetime.now(timezone.utc)
+        
+        if existing_record:
+            attendance_id = existing_record[0]
+            await conn.execute(
+                "UPDATE attendance SET check_in_time = %s WHERE id = %s",
+                (check_in_time, attendance_id)
+            )
+        else:
+            attendance_id = str(uuid.uuid4())
+            await conn.execute(
+                "INSERT INTO attendance (id, employee_id, check_in_time, date) VALUES (%s, %s, %s, %s)",
+                (attendance_id, attendance_request.employee_id, check_in_time, today)
+            )
+        
+        await conn.commit()
+        
+        attendance = Attendance(
+            id=attendance_id,
+            employee_id=attendance_request.employee_id,
+            check_in_time=check_in_time,
+            check_out_time=None,
+            date=today
+        )
+        return attendance
+    finally:
+        await conn.close()
+
+@app.post("/api/admin/attendance/check-out", response_model=Attendance)
+async def check_out_employee(attendance_request: AttendanceRequest, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        today = datetime.now(timezone.utc).date()
+        
+        cursor = await conn.execute("SELECT id FROM employees WHERE id = %s", (attendance_request.employee_id,))
+        if not await cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Employee not found")
+        
+        cursor = await conn.execute(
+            "SELECT id, check_in_time, check_out_time FROM attendance WHERE employee_id = %s AND date = %s",
+            (attendance_request.employee_id, today)
+        )
+        existing_record = await cursor.fetchone()
+        
+        if not existing_record or existing_record[1] is None:
+            raise HTTPException(status_code=400, detail="Employee must check in before checking out")
+        
+        if existing_record[2] is not None:
+            raise HTTPException(status_code=400, detail="Employee already checked out today")
+        
+        check_out_time = datetime.now(timezone.utc)
+        attendance_id = existing_record[0]
+        
+        await conn.execute(
+            "UPDATE attendance SET check_out_time = %s WHERE id = %s",
+            (check_out_time, attendance_id)
+        )
+        await conn.commit()
+        
+        attendance = Attendance(
+            id=attendance_id,
+            employee_id=attendance_request.employee_id,
+            check_in_time=existing_record[1],
+            check_out_time=check_out_time,
+            date=today
+        )
+        return attendance
+    finally:
+        await conn.close()
+
+@app.get("/api/admin/attendance", response_model=List[Attendance])
+async def get_attendance(current_user: str = Depends(verify_token)):
+    try:
+        conn = await get_db_connection()
+        try:
+            cursor = await conn.execute(
+                "SELECT id, employee_id, check_in_time, check_out_time, date FROM attendance ORDER BY date DESC, check_in_time DESC"
+            )
+            results = await cursor.fetchall()
+            
+            attendance_records = []
+            for row in results:
+                attendance = Attendance(
+                    id=row[0],
+                    employee_id=row[1],
+                    check_in_time=row[2],
+                    check_out_time=row[3],
+                    date=row[4]
+                )
+                attendance_records.append(attendance)
+            
+            return attendance_records
+        finally:
+            await conn.close()
+    except:
+        # Fallback to in-memory storage
+        return sorted(list(attendance_db.values()), key=lambda x: (x.date, x.check_in_time or datetime.min.replace(tzinfo=timezone.utc)), reverse=True)
+
+@app.get("/api/admin/attendance/{employee_id}", response_model=List[Attendance])
+async def get_employee_attendance(employee_id: str, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        cursor = await conn.execute("SELECT id FROM employees WHERE id = %s", (employee_id,))
+        if not await cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Employee not found")
+        
+        cursor = await conn.execute(
+            "SELECT id, employee_id, check_in_time, check_out_time, date FROM attendance WHERE employee_id = %s ORDER BY date DESC",
+            (employee_id,)
+        )
+        results = await cursor.fetchall()
+        
+        attendance_records = []
+        for row in results:
+            attendance = Attendance(
+                id=row[0],
+                employee_id=row[1],
+                check_in_time=row[2],
+                check_out_time=row[3],
+                date=row[4]
+            )
+            attendance_records.append(attendance)
+        
+        return attendance_records
     finally:
         await conn.close()

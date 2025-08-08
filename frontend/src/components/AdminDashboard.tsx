@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Trash2, Plus, UserCheck, Truck, LogOut, LayoutDashboard, Calendar, Users, DollarSign, BarChart3 } from 'lucide-react'
+import { Trash2, Plus, UserCheck, Truck, LogOut, LayoutDashboard, Calendar, Users, DollarSign, BarChart3, Edit, Check, X, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import Login from './Login'
 import { useAuth } from '../contexts/AuthContext'
@@ -59,12 +59,31 @@ interface Assignment {
   date: string
 }
 
+interface Employee {
+  id: string
+  name: string
+  phone: string
+  email?: string
+  position: string
+  status: 'active' | 'inactive'
+}
+
+interface Attendance {
+  id: string
+  employee_id: string
+  check_in_time?: string
+  check_out_time?: string
+  date: string
+}
+
 export default function AdminDashboard() {
   const { isAuthenticated, token, login, logout } = useAuth()
   const [ambulances, setAmbulances] = useState<Ambulance[]>([])
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [attendance, setAttendance] = useState<Attendance[]>([])
   const [loading, setLoading] = useState(true)
   const [activeMenuItem, setActiveMenuItem] = useState('dashboard')
 
@@ -102,6 +121,15 @@ export default function AdminDashboard() {
     ambulance_id: ''
   })
 
+  const [newEmployee, setNewEmployee] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    position: ''
+  })
+
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchData()
@@ -115,17 +143,21 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const [ambulancesRes, driversRes, bookingsRes, assignmentsRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL}/api/ambulances`, { headers: getAuthHeaders() }),
-        fetch(`${import.meta.env.VITE_API_URL}/api/drivers`, { headers: getAuthHeaders() }),
-        fetch(`${import.meta.env.VITE_API_URL}/api/bookings`, { headers: getAuthHeaders() }),
-        fetch(`${import.meta.env.VITE_API_URL}/api/assignments`, { headers: getAuthHeaders() })
+      const [ambulancesRes, driversRes, bookingsRes, assignmentsRes, employeesRes, attendanceRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL}/api/admin/ambulances`, { headers: getAuthHeaders() }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/admin/drivers`, { headers: getAuthHeaders() }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/admin/bookings`, { headers: getAuthHeaders() }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/admin/driver-assignments`, { headers: getAuthHeaders() }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/admin/employees`, { headers: getAuthHeaders() }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/admin/attendance`, { headers: getAuthHeaders() })
       ])
 
       if (ambulancesRes.ok) setAmbulances(await ambulancesRes.json())
       if (driversRes.ok) setDrivers(await driversRes.json())
       if (bookingsRes.ok) setBookings(await bookingsRes.json())
       if (assignmentsRes.ok) setAssignments(await assignmentsRes.json())
+      if (employeesRes.ok) setEmployees(await employeesRes.json())
+      if (attendanceRes.ok) setAttendance(await attendanceRes.json())
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -140,7 +172,7 @@ export default function AdminDashboard() {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/ambulances`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/ambulances`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(newAmbulance)
@@ -160,7 +192,7 @@ export default function AdminDashboard() {
 
   const deleteAmbulance = async (id: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/ambulances/${id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/ambulances/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       })
@@ -183,7 +215,7 @@ export default function AdminDashboard() {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/drivers`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/drivers`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(newDriver)
@@ -203,7 +235,7 @@ export default function AdminDashboard() {
 
   const deleteDriver = async (id: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/drivers/${id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/drivers/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       })
@@ -226,7 +258,7 @@ export default function AdminDashboard() {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/assignments`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assign-driver`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(assignmentForm)
@@ -251,10 +283,10 @@ export default function AdminDashboard() {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/bookings/${bookingAssignment.booking_id}/assign`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assign-ambulance`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ ambulance_id: bookingAssignment.ambulance_id })
+        body: JSON.stringify(bookingAssignment)
       })
 
       if (response.ok) {
@@ -277,6 +309,127 @@ export default function AdminDashboard() {
   const getAmbulancePlate = (ambulanceId: string) => {
     const ambulance = ambulances.find(a => a.id === ambulanceId)
     return ambulance ? ambulance.license_plate : 'Unknown'
+  }
+
+  const addEmployee = async () => {
+    if (!newEmployee.name || !newEmployee.phone || !newEmployee.position) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/employees`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(newEmployee)
+      })
+
+      if (response.ok) {
+        toast.success('Employee added successfully')
+        setNewEmployee({ name: '', phone: '', email: '', position: '' })
+        fetchData()
+      } else {
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to add employee')
+      }
+    } catch (error) {
+      toast.error('Error adding employee')
+    }
+  }
+
+  const updateEmployee = async (employee: Employee) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/employees/${employee.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: employee.name,
+          phone: employee.phone,
+          email: employee.email,
+          position: employee.position,
+          status: employee.status
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Employee updated successfully')
+        setEditingEmployee(null)
+        fetchData()
+      } else {
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to update employee')
+      }
+    } catch (error) {
+      toast.error('Error updating employee')
+    }
+  }
+
+  const deleteEmployee = async (id: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/employees/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      })
+
+      if (response.ok) {
+        toast.success('Employee deleted successfully')
+        fetchData()
+      } else {
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to delete employee')
+      }
+    } catch (error) {
+      toast.error('Error deleting employee')
+    }
+  }
+
+  const checkInEmployee = async (employeeId: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/attendance/check-in`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ employee_id: employeeId })
+      })
+
+      if (response.ok) {
+        toast.success('Employee checked in successfully')
+        fetchData()
+      } else {
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to check in employee')
+      }
+    } catch (error) {
+      toast.error('Error checking in employee')
+    }
+  }
+
+  const checkOutEmployee = async (employeeId: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/attendance/check-out`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ employee_id: employeeId })
+      })
+
+      if (response.ok) {
+        toast.success('Employee checked out successfully')
+        fetchData()
+      } else {
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to check out employee')
+      }
+    } catch (error) {
+      toast.error('Error checking out employee')
+    }
+  }
+
+  const getEmployeeName = (id: string) => {
+    return employees.find(e => e.id === id)?.name || 'Unknown'
+  }
+
+  const getTodayAttendance = (employeeId: string) => {
+    const today = new Date().toISOString().split('T')[0]
+    return attendance.find(a => a.employee_id === employeeId && a.date === today)
   }
 
   const renderDashboard = () => (
@@ -333,18 +486,218 @@ export default function AdminDashboard() {
   )
 
   const renderEmployeeManagement = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <Users className="h-5 w-5 mr-2" />
-          Employee Management
-        </CardTitle>
-        <CardDescription>Manage employee records and information</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground">Coming Soon - Employee management features will be available here.</p>
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Add Employee</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Input
+              placeholder="Employee Name"
+              value={newEmployee.name}
+              onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
+            />
+            <Input
+              placeholder="Phone Number"
+              value={newEmployee.phone}
+              onChange={(e) => setNewEmployee({ ...newEmployee, phone: e.target.value })}
+            />
+            <Input
+              placeholder="Email (Optional)"
+              value={newEmployee.email}
+              onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
+            />
+            <Input
+              placeholder="Position"
+              value={newEmployee.position}
+              onChange={(e) => setNewEmployee({ ...newEmployee, position: e.target.value })}
+            />
+          </div>
+          <Button onClick={addEmployee} className="mt-4">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Employee
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Employees ({employees.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Position</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Today's Attendance</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {employees.map((employee) => {
+                  const todayAttendance = getTodayAttendance(employee.id)
+                  const isEditing = editingEmployee?.id === employee.id
+                  
+                  return (
+                    <TableRow key={employee.id}>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input
+                            value={editingEmployee.name}
+                            onChange={(e) => setEditingEmployee({ ...editingEmployee, name: e.target.value })}
+                          />
+                        ) : (
+                          employee.name
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input
+                            value={editingEmployee.phone}
+                            onChange={(e) => setEditingEmployee({ ...editingEmployee, phone: e.target.value })}
+                          />
+                        ) : (
+                          employee.phone
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input
+                            value={editingEmployee.email || ''}
+                            onChange={(e) => setEditingEmployee({ ...editingEmployee, email: e.target.value })}
+                          />
+                        ) : (
+                          employee.email || 'N/A'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input
+                            value={editingEmployee.position}
+                            onChange={(e) => setEditingEmployee({ ...editingEmployee, position: e.target.value })}
+                          />
+                        ) : (
+                          employee.position
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <select
+                            value={editingEmployee.status}
+                            onChange={(e) => setEditingEmployee({ ...editingEmployee, status: e.target.value as 'active' | 'inactive' })}
+                            className="border rounded px-2 py-1"
+                          >
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                          </select>
+                        ) : (
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            employee.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {employee.status}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {todayAttendance ? (
+                          <div className="text-sm">
+                            <div>In: {todayAttendance.check_in_time ? new Date(todayAttendance.check_in_time).toLocaleTimeString() : 'N/A'}</div>
+                            <div>Out: {todayAttendance.check_out_time ? new Date(todayAttendance.check_out_time).toLocaleTimeString() : 'N/A'}</div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-500">No record</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          {isEditing ? (
+                            <>
+                              <Button size="sm" onClick={() => updateEmployee(editingEmployee)}>
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingEmployee(null)}>
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button size="sm" variant="outline" onClick={() => setEditingEmployee(employee)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => deleteEmployee(employee.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                              {!todayAttendance?.check_in_time && (
+                                <Button size="sm" variant="outline" onClick={() => checkInEmployee(employee.id)}>
+                                  Check In
+                                </Button>
+                              )}
+                              {todayAttendance?.check_in_time && !todayAttendance?.check_out_time && (
+                                <Button size="sm" variant="outline" onClick={() => checkOutEmployee(employee.id)}>
+                                  Check Out
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Attendance Records</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Check In</TableHead>
+                  <TableHead>Check Out</TableHead>
+                  <TableHead>Hours Worked</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {attendance.slice(0, 10).map((record) => {
+                  const hoursWorked = record.check_in_time && record.check_out_time
+                    ? ((new Date(record.check_out_time).getTime() - new Date(record.check_in_time).getTime()) / (1000 * 60 * 60)).toFixed(2)
+                    : 'N/A'
+                  
+                  return (
+                    <TableRow key={record.id}>
+                      <TableCell>{getEmployeeName(record.employee_id)}</TableCell>
+                      <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        {record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString() : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        {record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString() : 'N/A'}
+                      </TableCell>
+                      <TableCell>{hoursWorked} hours</TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 
   const renderExpenses = () => (
