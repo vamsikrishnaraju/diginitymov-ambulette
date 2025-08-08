@@ -819,8 +819,8 @@ export default function AdminDashboard() {
       </div>
       
       <SidebarProvider>
-        <div className="flex h-[calc(100vh-8rem)] w-full peer">
-          <Sidebar variant="inset">
+        <div className="flex h-[calc(100vh-8rem)] w-full peer relative">
+          <Sidebar variant="inset" className="!relative !inset-auto !h-full !left-auto !right-auto">
             <SidebarContent>
               <SidebarGroup>
                 <SidebarGroupContent>
