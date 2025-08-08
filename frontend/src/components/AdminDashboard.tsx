@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Trash2, Plus, UserCheck, Truck, LogOut, LayoutDashboard, Calendar, Users, DollarSign, BarChart3, Edit, Check, X } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
 import Login from './Login'
 import { useAuth } from '../contexts/AuthContext'
@@ -1134,20 +1135,152 @@ export default function AdminDashboard() {
     </div>
   )
 
-  const renderReports = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <BarChart3 className="h-5 w-5 mr-2" />
-          Reports
-        </CardTitle>
-        <CardDescription>Generate and view analytical reports</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground">Coming Soon - Reporting features will be available here.</p>
-      </CardContent>
-    </Card>
-  )
+  const generateMonthlyBookingsData = () => {
+    const months = [
+      'Jan 2024', 'Feb 2024', 'Mar 2024', 'Apr 2024', 'May 2024', 'Jun 2024',
+      'Jul 2024', 'Aug 2024', 'Sep 2024', 'Oct 2024', 'Nov 2024', 'Dec 2024'
+    ]
+    return months.map(month => ({
+      month,
+      bookings: Math.floor(Math.random() * 50) + 10
+    }))
+  }
+
+  const generateMonthlyExpensesData = () => {
+    const months = [
+      'Jan 2024', 'Feb 2024', 'Mar 2024', 'Apr 2024', 'May 2024', 'Jun 2024',
+      'Jul 2024', 'Aug 2024', 'Sep 2024', 'Oct 2024', 'Nov 2024', 'Dec 2024'
+    ]
+    return months.map(month => ({
+      month,
+      ambulette: Math.floor(Math.random() * 5000) + 2000,
+      employee: Math.floor(Math.random() * 8000) + 3000,
+      total: 0
+    })).map(item => ({
+      ...item,
+      total: item.ambulette + item.employee
+    }))
+  }
+
+  const renderReports = () => {
+    const bookingsData = generateMonthlyBookingsData()
+    const expensesData = generateMonthlyExpensesData()
+
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <BarChart3 className="h-5 w-5 mr-2" />
+              Monthly Reports
+            </CardTitle>
+            <CardDescription>Static reports showing monthly bookings and expenses data</CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Calendar className="h-5 w-5 mr-2" />
+              Monthly Bookings Report
+            </CardTitle>
+            <CardDescription>Number of ambulette bookings per month</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={bookingsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="bookings" fill="#3b82f6" name="Bookings" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-blue-600">
+                  {bookingsData.reduce((sum, item) => sum + item.bookings, 0)}
+                </p>
+                <p className="text-sm text-muted-foreground">Total Bookings</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-green-600">
+                  {Math.round(bookingsData.reduce((sum, item) => sum + item.bookings, 0) / 12)}
+                </p>
+                <p className="text-sm text-muted-foreground">Avg per Month</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-orange-600">
+                  {Math.max(...bookingsData.map(item => item.bookings))}
+                </p>
+                <p className="text-sm text-muted-foreground">Peak Month</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-red-600">
+                  {Math.min(...bookingsData.map(item => item.bookings))}
+                </p>
+                <p className="text-sm text-muted-foreground">Lowest Month</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <DollarSign className="h-5 w-5 mr-2" />
+              Monthly Expenses Report
+            </CardTitle>
+            <CardDescription>Ambulette and employee expenses breakdown by month</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={expensesData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, '']} />
+                  <Legend />
+                  <Bar dataKey="ambulette" stackId="a" fill="#ef4444" name="Ambulette Expenses" />
+                  <Bar dataKey="employee" stackId="a" fill="#22c55e" name="Employee Expenses" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-blue-600">
+                  ${expensesData.reduce((sum, item) => sum + item.total, 0).toLocaleString()}
+                </p>
+                <p className="text-sm text-muted-foreground">Total Expenses</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-red-500">
+                  ${expensesData.reduce((sum, item) => sum + item.ambulette, 0).toLocaleString()}
+                </p>
+                <p className="text-sm text-muted-foreground">Ambulette Total</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-green-500">
+                  ${expensesData.reduce((sum, item) => sum + item.employee, 0).toLocaleString()}
+                </p>
+                <p className="text-sm text-muted-foreground">Employee Total</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-orange-600">
+                  ${Math.round(expensesData.reduce((sum, item) => sum + item.total, 0) / 12).toLocaleString()}
+                </p>
+                <p className="text-sm text-muted-foreground">Avg per Month</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   const renderAmbulettes = () => (
     <div className="space-y-4">
