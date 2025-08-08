@@ -116,6 +116,48 @@ CREATE TABLE attendance (
     UNIQUE(employee_id, date)
 );
 
+CREATE TYPE expense_category AS ENUM ('ambulette', 'employee');
+CREATE TYPE expense_type AS ENUM ('fuel', 'maintenance', 'other', 'salary', 'bonus');
+
+CREATE TABLE expenses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    category expense_category NOT NULL,
+    type expense_type NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
+    description TEXT,
+    bill_file_path VARCHAR(500),
+    employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+    ambulance_id UUID REFERENCES ambulances(id) ON DELETE SET NULL,
+    expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT valid_category_type CHECK (
+        (category = 'ambulette' AND type IN ('fuel', 'maintenance', 'other')) OR
+        (category = 'employee' AND type IN ('salary', 'bonus', 'other'))
+    ),
+    CONSTRAINT bill_required_for_fuel_maintenance CHECK (
+        (type IN ('fuel', 'maintenance') AND bill_file_path IS NOT NULL) OR
+        (type NOT IN ('fuel', 'maintenance'))
+    ),
+    CONSTRAINT valid_employee_reference CHECK (
+        (category = 'employee' AND employee_id IS NOT NULL) OR
+        (category = 'ambulette')
+    ),
+    CONSTRAINT valid_ambulance_reference CHECK (
+        (category = 'ambulette' AND ambulance_id IS NOT NULL) OR
+        (category = 'employee')
+    )
+);
+
+CREATE INDEX idx_expenses_category ON expenses(category);
+CREATE INDEX idx_expenses_type ON expenses(type);
+CREATE INDEX idx_expenses_date ON expenses(expense_date);
+CREATE INDEX idx_expenses_employee ON expenses(employee_id);
+CREATE INDEX idx_expenses_ambulance ON expenses(ambulance_id);
+
+CREATE TRIGGER update_expenses_updated_at BEFORE UPDATE ON expenses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     table_name VARCHAR(50) NOT NULL,

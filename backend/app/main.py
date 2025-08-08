@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -148,6 +148,7 @@ bookings_db = {}
 ambulances_db = {}
 drivers_db = {}
 assignments_db = {}
+expenses_db = {}
 otp_storage = {}
 
 class Location(BaseModel):
@@ -270,6 +271,36 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str
+
+class Expense(BaseModel):
+    id: str
+    category: str
+    type: str
+    amount: float
+    description: Optional[str] = None
+    bill_file_path: Optional[str] = None
+    employee_id: Optional[str] = None
+    ambulance_id: Optional[str] = None
+    expense_date: date
+    created_at: datetime
+
+class ExpenseRequest(BaseModel):
+    category: str
+    type: str
+    amount: float
+    description: Optional[str] = None
+    employee_id: Optional[str] = None
+    ambulance_id: Optional[str] = None
+    expense_date: Optional[date] = None
+
+class ExpenseUpdateRequest(BaseModel):
+    category: Optional[str] = None
+    type: Optional[str] = None
+    amount: Optional[float] = None
+    description: Optional[str] = None
+    employee_id: Optional[str] = None
+    ambulance_id: Optional[str] = None
+    expense_date: Optional[date] = None
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -1061,3 +1092,120 @@ async def get_employee_attendance(employee_id: str, current_user: str = Depends(
         return attendance_records
     finally:
         await conn.close()
+
+@app.post("/api/admin/expenses")
+async def create_expense(expense: ExpenseRequest, token: HTTPAuthorizationCredentials = Depends(verify_token)):
+    expense_id = str(uuid.uuid4())
+    expense_date = expense.expense_date or date.today()
+    
+    try:
+        conn = await get_db_connection()
+        async with conn.cursor() as cur:
+            await cur.execute("""
+                INSERT INTO expenses (id, category, type, amount, description, employee_id, ambulance_id, expense_date, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (expense_id, expense.category, expense.type, expense.amount, expense.description, 
+                  expense.employee_id, expense.ambulance_id, expense_date, datetime.now(timezone.utc)))
+            await conn.commit()
+    except Exception as e:
+        print(f"Database error: {e}")
+        expenses_db[expense_id] = {
+            "id": expense_id,
+            "category": expense.category,
+            "type": expense.type,
+            "amount": expense.amount,
+            "description": expense.description,
+            "bill_file_path": None,
+            "employee_id": expense.employee_id,
+            "ambulance_id": expense.ambulance_id,
+            "expense_date": expense_date.isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+    
+    return {"message": "Expense created successfully", "id": expense_id}
+
+@app.get("/api/admin/expenses")
+async def get_expenses(token: HTTPAuthorizationCredentials = Depends(verify_token)):
+    try:
+        conn = await get_db_connection()
+        async with conn.cursor() as cur:
+            await cur.execute("""
+                SELECT e.*, emp.name as employee_name, a.license_plate as ambulance_plate
+                FROM expenses e
+                LEFT JOIN employees emp ON e.employee_id = emp.id
+                LEFT JOIN ambulances a ON e.ambulance_id = a.id
+                ORDER BY e.created_at DESC
+            """)
+            expenses = await cur.fetchall()
+            return [dict(expense) for expense in expenses]
+    except Exception as e:
+        print(f"Database error: {e}")
+        return list(expenses_db.values())
+
+@app.put("/api/admin/expenses/{expense_id}")
+async def update_expense(expense_id: str, expense: ExpenseUpdateRequest, token: HTTPAuthorizationCredentials = Depends(verify_token)):
+    try:
+        conn = await get_db_connection()
+        async with conn.cursor() as cur:
+            update_fields = []
+            values = []
+            for field, value in expense.dict(exclude_unset=True).items():
+                if value is not None:
+                    update_fields.append(f"{field} = %s")
+                    values.append(value)
+            
+            if update_fields:
+                update_fields.append("updated_at = %s")
+                values.append(datetime.now(timezone.utc))
+                values.append(expense_id)
+                
+                query = f"UPDATE expenses SET {', '.join(update_fields)} WHERE id = %s"
+                await cur.execute(query, values)
+                await conn.commit()
+    except Exception as e:
+        print(f"Database error: {e}")
+        if expense_id in expenses_db:
+            for field, value in expense.dict(exclude_unset=True).items():
+                if value is not None:
+                    expenses_db[expense_id][field] = value
+    
+    return {"message": "Expense updated successfully"}
+
+@app.delete("/api/admin/expenses/{expense_id}")
+async def delete_expense(expense_id: str, token: HTTPAuthorizationCredentials = Depends(verify_token)):
+    try:
+        conn = await get_db_connection()
+        async with conn.cursor() as cur:
+            await cur.execute("DELETE FROM expenses WHERE id = %s", (expense_id,))
+            await conn.commit()
+    except Exception as e:
+        print(f"Database error: {e}")
+        if expense_id in expenses_db:
+            del expenses_db[expense_id]
+    
+    return {"message": "Expense deleted successfully"}
+
+@app.post("/api/admin/expenses/{expense_id}/upload-bill")
+async def upload_bill(expense_id: str, file: UploadFile = File(...), token: HTTPAuthorizationCredentials = Depends(verify_token)):
+    upload_dir = "uploads/bills"
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    file_extension = file.filename.split('.')[-1] if '.' in file.filename else ''
+    unique_filename = f"{expense_id}_{int(time.time())}.{file_extension}"
+    file_path = os.path.join(upload_dir, unique_filename)
+    
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+    
+    try:
+        conn = await get_db_connection()
+        async with conn.cursor() as cur:
+            await cur.execute("UPDATE expenses SET bill_file_path = %s WHERE id = %s", (file_path, expense_id))
+            await conn.commit()
+    except Exception as e:
+        print(f"Database error: {e}")
+        if expense_id in expenses_db:
+            expenses_db[expense_id]["bill_file_path"] = file_path
+    
+    return {"message": "Bill uploaded successfully", "file_path": file_path}

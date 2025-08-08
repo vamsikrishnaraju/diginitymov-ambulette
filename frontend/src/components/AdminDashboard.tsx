@@ -76,6 +76,21 @@ interface Attendance {
   date: string
 }
 
+interface Expense {
+  id: string
+  category: 'ambulette' | 'employee'
+  type: 'fuel' | 'maintenance' | 'other' | 'salary' | 'bonus'
+  amount: number
+  description?: string
+  bill_file_path?: string
+  employee_id?: string
+  ambulance_id?: string
+  employee_name?: string
+  ambulance_plate?: string
+  expense_date: string
+  created_at: string
+}
+
 export default function AdminDashboard() {
   const { isAuthenticated, token, login, logout } = useAuth()
   const [ambulances, setAmbulances] = useState<Ambulance[]>([])
@@ -84,6 +99,7 @@ export default function AdminDashboard() {
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [attendance, setAttendance] = useState<Attendance[]>([])
+  const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [activeMenuItem, setActiveMenuItem] = useState('dashboard')
 
@@ -130,6 +146,19 @@ export default function AdminDashboard() {
 
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
 
+  const [newExpense, setNewExpense] = useState({
+    category: 'ambulette' as 'ambulette' | 'employee',
+    type: 'fuel' as 'fuel' | 'maintenance' | 'other' | 'salary' | 'bonus',
+    amount: '',
+    description: '',
+    employee_id: '',
+    ambulance_id: '',
+    expense_date: new Date().toISOString().split('T')[0]
+  })
+
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchData()
@@ -143,13 +172,14 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const [ambulancesRes, driversRes, bookingsRes, assignmentsRes, employeesRes, attendanceRes] = await Promise.all([
+      const [ambulancesRes, driversRes, bookingsRes, assignmentsRes, employeesRes, attendanceRes, expensesRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/admin/ambulances`, { headers: getAuthHeaders() }),
         fetch(`${import.meta.env.VITE_API_URL}/api/admin/drivers`, { headers: getAuthHeaders() }),
         fetch(`${import.meta.env.VITE_API_URL}/api/admin/bookings`, { headers: getAuthHeaders() }),
         fetch(`${import.meta.env.VITE_API_URL}/api/admin/driver-assignments`, { headers: getAuthHeaders() }),
         fetch(`${import.meta.env.VITE_API_URL}/api/admin/employees`, { headers: getAuthHeaders() }),
-        fetch(`${import.meta.env.VITE_API_URL}/api/admin/attendance`, { headers: getAuthHeaders() })
+        fetch(`${import.meta.env.VITE_API_URL}/api/admin/attendance`, { headers: getAuthHeaders() }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/admin/expenses`, { headers: getAuthHeaders() })
       ])
 
       if (ambulancesRes.ok) setAmbulances(await ambulancesRes.json())
@@ -158,6 +188,7 @@ export default function AdminDashboard() {
       if (assignmentsRes.ok) setAssignments(await assignmentsRes.json())
       if (employeesRes.ok) setEmployees(await employeesRes.json())
       if (attendanceRes.ok) setAttendance(await attendanceRes.json())
+      if (expensesRes.ok) setExpenses(await expensesRes.json())
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -432,6 +463,151 @@ export default function AdminDashboard() {
     return attendance.find(a => a.employee_id === employeeId && a.date === today)
   }
 
+  const addExpense = async () => {
+    if (!newExpense.category || !newExpense.type || !newExpense.amount) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
+    if (newExpense.category === 'ambulette' && !['fuel', 'maintenance', 'other'].includes(newExpense.type)) {
+      toast.error('Invalid expense type for ambulette category')
+      return
+    }
+    if (newExpense.category === 'employee' && !['salary', 'bonus', 'other'].includes(newExpense.type)) {
+      toast.error('Invalid expense type for employee category')
+      return
+    }
+
+    if (newExpense.category === 'employee' && !newExpense.employee_id) {
+      toast.error('Please select an employee for employee expenses')
+      return
+    }
+    if (newExpense.category === 'ambulette' && !newExpense.ambulance_id) {
+      toast.error('Please select an ambulette for ambulette expenses')
+      return
+    }
+
+    try {
+      const expenseData = {
+        ...newExpense,
+        amount: parseFloat(newExpense.amount),
+        employee_id: newExpense.category === 'employee' ? newExpense.employee_id : null,
+        ambulance_id: newExpense.category === 'ambulette' ? newExpense.ambulance_id : null
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/expenses`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(expenseData)
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        
+        if (selectedFile && ['fuel', 'maintenance'].includes(newExpense.type)) {
+          await uploadBill(result.id, selectedFile)
+        }
+        
+        toast.success('Expense added successfully')
+        setNewExpense({
+          category: 'ambulette',
+          type: 'fuel',
+          amount: '',
+          description: '',
+          employee_id: '',
+          ambulance_id: '',
+          expense_date: new Date().toISOString().split('T')[0]
+        })
+        setSelectedFile(null)
+        fetchData()
+      } else {
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to add expense')
+      }
+    } catch (error) {
+      toast.error('Error adding expense')
+    }
+  }
+
+  const updateExpense = async (expense: Expense) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/expenses/${expense.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          category: expense.category,
+          type: expense.type,
+          amount: expense.amount,
+          description: expense.description,
+          employee_id: expense.employee_id,
+          ambulance_id: expense.ambulance_id,
+          expense_date: expense.expense_date
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Expense updated successfully')
+        setEditingExpense(null)
+        fetchData()
+      } else {
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to update expense')
+      }
+    } catch (error) {
+      toast.error('Error updating expense')
+    }
+  }
+
+  const deleteExpense = async (id: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/expenses/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      })
+
+      if (response.ok) {
+        toast.success('Expense deleted successfully')
+        fetchData()
+      } else {
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to delete expense')
+      }
+    } catch (error) {
+      toast.error('Error deleting expense')
+    }
+  }
+
+  const uploadBill = async (expenseId: string, file: File) => {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/expenses/${expenseId}/upload-bill`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      if (response.ok) {
+        toast.success('Bill uploaded successfully')
+      } else {
+        toast.error('Failed to upload bill')
+      }
+    } catch (error) {
+      toast.error('Error uploading bill')
+    }
+  }
+
+  const getExpenseTypeOptions = (category: string) => {
+    if (category === 'ambulette') {
+      return ['fuel', 'maintenance', 'other']
+    } else {
+      return ['salary', 'bonus', 'other']
+    }
+  }
+
   const renderDashboard = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -701,18 +877,261 @@ export default function AdminDashboard() {
   )
 
   const renderExpenses = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <DollarSign className="h-5 w-5 mr-2" />
-          Expenses
-        </CardTitle>
-        <CardDescription>Track and manage operational expenses</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground">Coming Soon - Expense tracking features will be available here.</p>
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Add Expense</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="category">Category</Label>
+              <Select value={newExpense.category} onValueChange={(value: 'ambulette' | 'employee') => {
+                setNewExpense({ 
+                  ...newExpense, 
+                  category: value,
+                  type: value === 'ambulette' ? 'fuel' : 'salary',
+                  employee_id: '',
+                  ambulance_id: ''
+                })
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ambulette">Ambulette</SelectItem>
+                  <SelectItem value="employee">Employee</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="type">Type</Label>
+              <Select value={newExpense.type} onValueChange={(value) => setNewExpense({ ...newExpense, type: value as any })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getExpenseTypeOptions(newExpense.category).map(type => (
+                    <SelectItem key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={newExpense.amount}
+                onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="expense_date">Date</Label>
+              <Input
+                id="expense_date"
+                type="date"
+                value={newExpense.expense_date}
+                onChange={(e) => setNewExpense({ ...newExpense, expense_date: e.target.value })}
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            {newExpense.category === 'employee' && (
+              <div>
+                <Label htmlFor="employee">Employee</Label>
+                <Select value={newExpense.employee_id} onValueChange={(value) => setNewExpense({ ...newExpense, employee_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map(employee => (
+                      <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {newExpense.category === 'ambulette' && (
+              <div>
+                <Label htmlFor="ambulance">Ambulette</Label>
+                <Select value={newExpense.ambulance_id} onValueChange={(value) => setNewExpense({ ...newExpense, ambulance_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select ambulette" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ambulances.map(ambulance => (
+                      <SelectItem key={ambulance.id} value={ambulance.id}>{ambulance.license_plate} - {ambulance.model}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            <div>
+              <Label htmlFor="description">Description (Optional)</Label>
+              <Input
+                id="description"
+                placeholder="Expense description"
+                value={newExpense.description}
+                onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {['fuel', 'maintenance'].includes(newExpense.type) && (
+            <div className="mt-4">
+              <Label htmlFor="bill">Bill Upload (Required)</Label>
+              <Input
+                id="bill"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+              />
+            </div>
+          )}
+
+          <Button onClick={addExpense} className="mt-4">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Expense
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Expenses ({expenses.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Employee/Ambulette</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Bill</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {expenses.map((expense) => {
+                  const isEditing = editingExpense?.id === expense.id
+                  return (
+                    <TableRow key={expense.id}>
+                      <TableCell>
+                        {isEditing ? (
+                          <Select value={editingExpense.category} onValueChange={(value: 'ambulette' | 'employee') => 
+                            setEditingExpense({ ...editingExpense, category: value })
+                          }>
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ambulette">Ambulette</SelectItem>
+                              <SelectItem value="employee">Employee</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="capitalize">{expense.category}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Select value={editingExpense.type} onValueChange={(value) => 
+                            setEditingExpense({ ...editingExpense, type: value as any })
+                          }>
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getExpenseTypeOptions(editingExpense.category).map(type => (
+                                <SelectItem key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="capitalize">{expense.type}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={editingExpense.amount}
+                            onChange={(e) => setEditingExpense({ ...editingExpense, amount: parseFloat(e.target.value) })}
+                            className="w-24"
+                          />
+                        ) : (
+                          `$${expense.amount.toFixed(2)}`
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input
+                            value={editingExpense.description || ''}
+                            onChange={(e) => setEditingExpense({ ...editingExpense, description: e.target.value })}
+                            className="w-32"
+                          />
+                        ) : (
+                          expense.description || 'N/A'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {expense.category === 'employee' ? expense.employee_name : expense.ambulance_plate}
+                      </TableCell>
+                      <TableCell>{new Date(expense.expense_date).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        {expense.bill_file_path ? (
+                          <span className="text-green-600">✓ Uploaded</span>
+                        ) : (
+                          ['fuel', 'maintenance'].includes(expense.type) ? (
+                            <span className="text-red-600">Required</span>
+                          ) : (
+                            <span className="text-gray-400">N/A</span>
+                          )
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          {isEditing ? (
+                            <>
+                              <Button size="sm" onClick={() => updateExpense(editingExpense)}>
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingExpense(null)}>
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button size="sm" variant="outline" onClick={() => setEditingExpense(expense)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => deleteExpense(expense.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 
   const renderReports = () => (
