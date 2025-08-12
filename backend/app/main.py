@@ -742,6 +742,11 @@ async def create_ambulance(ambulance_request: AmbulanceRequest, current_user: st
             capacity=ambulance_request.capacity
         )
         return ambulance
+    except Exception as e:
+        if "duplicate key value violates unique constraint" in str(e):
+            raise HTTPException(status_code=400, detail="Ambulance with this license plate already exists")
+        else:
+            raise HTTPException(status_code=500, detail=str(e))
     finally:
         await conn.close()
 
@@ -754,8 +759,9 @@ async def get_ambulances(current_user: str = Depends(verify_token)):
         
         ambulances = []
         for row in results:
+            print(f"Processing row: {row[1]}")
             ambulance = Ambulance(
-                id=row[0],
+                id=str(row[0]), 
                 license_plate=row[1],
                 model=row[2],
                 capacity=row[3],
@@ -827,7 +833,7 @@ async def get_drivers(current_user: str = Depends(verify_token)):
         drivers = []
         for row in results:
             driver = Driver(
-                id=row[0],
+                id=str(row[0]),
                 name=row[1],
                 phone=row[2],
                 license_number=row[3],
@@ -869,6 +875,12 @@ async def assign_driver_to_ambulance(assignment_request: AssignDriverRequest, cu
             date=assignment_request.date
         )
         return assignment
+    except Exception as e:
+        print(f"Error assigning driver to ambulance: {e}")
+        if "duplicate key value violates unique constraint" in str(e):
+            raise HTTPException(status_code=400, detail="Driver already assigned to another ambulance")
+        else:
+            raise HTTPException(status_code=500, detail=str(e))
     finally:
         await conn.close()
 
@@ -881,10 +893,11 @@ async def get_driver_assignments(current_user: str = Depends(verify_token)):
         
         assignments = []
         for row in results:
+            print(f"Processing row: {row}")  
             assignment = DriverAssignment(
-                id=row[0],
-                driver_id=row[1],
-                ambulance_id=row[2],
+                id=str(row[0]),
+                driver_id=str(row[1]),
+                ambulance_id=str(row[2]),
                 date=row[3]
             )
             assignments.append(assignment)
@@ -912,6 +925,12 @@ async def assign_ambulance_to_booking(assignment_request: AssignAmbulanceRequest
         await conn.commit()
         
         return {"message": "Ambulance assigned to booking successfully"}
+    except Exception as e:
+        print(f"Error assigning ambulance to booking: {e}")
+        if "duplicate key value violates unique constraint" in str(e):
+            raise HTTPException(status_code=400, detail="Ambulance already assigned to another booking")
+        else:
+            raise HTTPException(status_code=500, detail=str(e))
     finally:
         await conn.close()
 

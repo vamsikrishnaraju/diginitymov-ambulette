@@ -159,6 +159,18 @@ export default function AdminDashboard() {
 
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  
+  // OTP verification states for driver
+  const [driverOtpPhone, setDriverOtpPhone] = useState('')
+  const [driverOtpCode, setDriverOtpCode] = useState('')
+  const [driverOtpSent, setDriverOtpSent] = useState(false)
+  const [driverOtpVerified, setDriverOtpVerified] = useState(false)
+  
+  // Show/hide add driver form
+  const [showAddDriverForm, setShowAddDriverForm] = useState(false)
+  
+  // Show/hide add ambulette form
+  const [showAddAmbulanceForm, setShowAddAmbulanceForm] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -176,13 +188,13 @@ export default function AdminDashboard() {
       const [ambulancesRes, driversRes, bookingsRes, assignmentsRes, employeesRes, attendanceRes, expensesRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/admin/ambulances`, { headers: getAuthHeaders() }),
         fetch(`${import.meta.env.VITE_API_URL}/api/admin/drivers`, { headers: getAuthHeaders() }),
-        fetch(`${import.meta.env.VITE_API_URL}/api/admin/bookings`, { headers: getAuthHeaders() }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/bookings`, { headers: getAuthHeaders() }),
         fetch(`${import.meta.env.VITE_API_URL}/api/admin/driver-assignments`, { headers: getAuthHeaders() }),
         fetch(`${import.meta.env.VITE_API_URL}/api/admin/employees`, { headers: getAuthHeaders() }),
         fetch(`${import.meta.env.VITE_API_URL}/api/admin/attendance`, { headers: getAuthHeaders() }),
         fetch(`${import.meta.env.VITE_API_URL}/api/admin/expenses`, { headers: getAuthHeaders() })
       ])
-
+      console.log(bookingsRes)
       if (ambulancesRes.ok) setAmbulances(await ambulancesRes.json())
       if (driversRes.ok) setDrivers(await driversRes.json())
       if (bookingsRes.ok) setBookings(await bookingsRes.json())
@@ -199,6 +211,7 @@ export default function AdminDashboard() {
 
   const addAmbulance = async () => {
     if (!newAmbulance.license_plate || !newAmbulance.model) {
+      console.log('Showing error toast')
       toast.error('Please fill in all required fields')
       return
     }
@@ -212,8 +225,11 @@ export default function AdminDashboard() {
 
       if (response.ok) {
         toast.success('Ambulance added successfully')
-        setNewAmbulance({ license_plate: '', model: '', capacity: 1 })
+        resetAmbulanceForm()
         fetchData()
+      } else if (response.status === 400) {
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to add ambulance')
       } else {
         toast.error('Failed to add ambulance')
       }
@@ -246,6 +262,12 @@ export default function AdminDashboard() {
       return
     }
 
+    // Check if phone number is verified
+    if (!driverOtpVerified || driverOtpPhone !== newDriver.phone) {
+      toast.error('Please verify the phone number with OTP before adding driver')
+      return
+    }
+
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/drivers`, {
         method: 'POST',
@@ -255,10 +277,11 @@ export default function AdminDashboard() {
 
       if (response.ok) {
         toast.success('Driver added successfully')
-        setNewDriver({ name: '', phone: '', license_number: '' })
+        resetDriverForm()
         fetchData()
       } else {
-        toast.error('Failed to add driver')
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to add driver')
       }
     } catch (error) {
       toast.error('Error adding driver')
@@ -300,6 +323,9 @@ export default function AdminDashboard() {
         toast.success('Driver assigned successfully')
         setAssignmentForm({ driver_id: '', ambulance_id: '', date: '' })
         fetchData()
+      } else if (response.status === 400) {
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to assign driver')
       } else {
         toast.error('Failed to assign driver')
       }
@@ -607,6 +633,80 @@ export default function AdminDashboard() {
     } else {
       return ['salary', 'bonus', 'other']
     }
+  }
+
+  // OTP functions for driver verification
+  const sendDriverOtp = async (phone: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/send-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ phone })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        toast.success(`OTP sent to ${phone}. For testing: ${result.message.split('For testing: ')[1]}`)
+        setDriverOtpSent(true)
+        setDriverOtpPhone(phone)
+      } else {
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to send OTP')
+      }
+    } catch (error) {
+      toast.error('Error sending OTP')
+    }
+  }
+
+  const verifyDriverOtp = async () => {
+    if (!driverOtpCode) {
+      toast.error('Please enter OTP code')
+      return
+    }
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/verify-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          phone: driverOtpPhone, 
+          otp: driverOtpCode 
+        })
+      })
+
+      if (response.ok) {
+        toast.success('OTP verified successfully')
+        setDriverOtpVerified(true)
+        setDriverOtpCode('')
+      } else {
+        const error = await response.json()
+        toast.error(error.detail || 'Invalid OTP')
+      }
+    } catch (error) {
+      toast.error('Error verifying OTP')
+    }
+  }
+
+  const resetDriverOtp = () => {
+    setDriverOtpPhone('')
+    setDriverOtpCode('')
+    setDriverOtpSent(false)
+    setDriverOtpVerified(false)
+  }
+
+  const resetDriverForm = () => {
+    setNewDriver({ name: '', phone: '', license_number: '' })
+    resetDriverOtp()
+    setShowAddDriverForm(false)
+  }
+
+  const resetAmbulanceForm = () => {
+    setNewAmbulance({ license_plate: '', model: '', capacity: 1 })
+    setShowAddAmbulanceForm(false)
   }
 
   const renderDashboard = () => (
@@ -1284,53 +1384,82 @@ export default function AdminDashboard() {
 
   const renderAmbulettes = () => (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Truck className="h-5 w-5 mr-2" />
-            Add New Ambulette
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <Label htmlFor="license_plate">License Plate</Label>
-              <Input
-                id="license_plate"
-                value={newAmbulance.license_plate}
-                onChange={(e) => setNewAmbulance(prev => ({ ...prev, license_plate: e.target.value }))}
-                placeholder="ABC-123"
-              />
-            </div>
-            <div>
-              <Label htmlFor="model">Model</Label>
-              <Input
-                id="model"
-                value={newAmbulance.model}
-                onChange={(e) => setNewAmbulance(prev => ({ ...prev, model: e.target.value }))}
-                placeholder="Mercedes Sprinter"
-              />
-            </div>
-            <div>
-              <Label htmlFor="capacity">Capacity</Label>
-              <Input
-                id="capacity"
-                type="number"
-                min="1"
-                value={newAmbulance.capacity}
-                onChange={(e) => setNewAmbulance(prev => ({ ...prev, capacity: parseInt(e.target.value) || 1 }))}
-                placeholder="4"
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={addAmbulance} className="w-full">
+      {/* Add New Ambulette Button */}
+      {!showAddAmbulanceForm && (
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex justify-end">
+              <Button 
+                onClick={() => setShowAddAmbulanceForm(true)}
+                className="w-full sm:w-auto"
+              >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Ambulette
+                Add New Ambulette
               </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Add New Ambulette Form */}
+      {showAddAmbulanceForm && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Truck className="h-5 w-5 mr-2" />
+                Add New Ambulette
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={resetAmbulanceForm}
+              >
+                Cancel
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="license_plate">License Plate</Label>
+                <Input
+                  id="license_plate"
+                  value={newAmbulance.license_plate}
+                  onChange={(e) => setNewAmbulance(prev => ({ ...prev, license_plate: e.target.value }))}
+                  placeholder="ABC-123"
+                />
+              </div>
+              <div>
+                <Label htmlFor="model">Model</Label>
+                <Input
+                  id="model"
+                  value={newAmbulance.model}
+                  onChange={(e) => setNewAmbulance(prev => ({ ...prev, model: e.target.value }))}
+                  placeholder="Mercedes Sprinter"
+                />
+              </div>
+              <div>
+                <Label htmlFor="capacity">Capacity</Label>
+                <Input
+                  id="capacity"
+                  type="number"
+                  min="1"
+                  value={newAmbulance.capacity}
+                  onChange={(e) => setNewAmbulance(prev => ({ ...prev, capacity: parseInt(e.target.value) || 1 }))}
+                  placeholder="4"
+                />
+              </div>
+              <div className="flex items-end">
+                <Button onClick={addAmbulance} className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Ambulette
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -1383,51 +1512,158 @@ export default function AdminDashboard() {
 
   const renderDrivers = () => (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <UserCheck className="h-5 w-5 mr-2" />
-            Add New Driver
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <Label htmlFor="driver_name">Name</Label>
-              <Input
-                id="driver_name"
-                value={newDriver.name}
-                onChange={(e) => setNewDriver(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="John Doe"
-              />
-            </div>
-            <div>
-              <Label htmlFor="driver_phone">Phone</Label>
-              <Input
-                id="driver_phone"
-                value={newDriver.phone}
-                onChange={(e) => setNewDriver(prev => ({ ...prev, phone: e.target.value }))}
-                placeholder="+1234567890"
-              />
-            </div>
-            <div>
-              <Label htmlFor="driver_license">License Number</Label>
-              <Input
-                id="driver_license"
-                value={newDriver.license_number}
-                onChange={(e) => setNewDriver(prev => ({ ...prev, license_number: e.target.value }))}
-                placeholder="DL123456"
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={addDriver} className="w-full">
+      {/* Add New Driver Button */}
+      {!showAddDriverForm && (
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex justify-end">
+              <Button 
+                onClick={() => setShowAddDriverForm(true)}
+                className="w-full sm:w-auto"
+              >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Driver
+                Add New Driver
               </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Add New Driver Form */}
+      {showAddDriverForm && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center">
+                <UserCheck className="h-5 w-5 mr-2" />
+                Add New Driver
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={resetDriverForm}
+              >
+                Cancel
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            <div className="space-y-4 max-w-md">
+              <div>
+                <Label htmlFor="driver_name">Name</Label>
+                <Input
+                  id="driver_name"
+                  value={newDriver.name}
+                  onChange={(e) => setNewDriver(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="John Doe"
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="driver_phone">Phone</Label>
+                <div className="flex gap-2 mt-1">
+                  <div className="flex-1 relative">
+                    <Input
+                      id="driver_phone"
+                      value={newDriver.phone}
+                      onChange={(e) => {
+                        setNewDriver(prev => ({ ...prev, phone: e.target.value }))
+                        // Reset OTP verification if phone number changes
+                        if (e.target.value !== driverOtpPhone) {
+                          resetDriverOtp()
+                        }
+                      }}
+                      placeholder="+1234567890"
+                      className={driverOtpVerified && driverOtpPhone === newDriver.phone ? 'border-green-500' : ''}
+                    />
+                    {driverOtpVerified && driverOtpPhone === newDriver.phone && (
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-green-500">
+                        ✓
+                      </div>
+                    )}
+                  </div>
+                  <Button 
+                    onClick={() => sendDriverOtp(newDriver.phone)}
+                    disabled={!newDriver.phone || driverOtpSent}
+                    size="sm"
+                    variant="outline"
+                  >
+                    {driverOtpSent ? 'OTP Sent' : 'Send OTP'}
+                  </Button>
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="driver_license">License Number</Label>
+                <Input
+                  id="driver_license"
+                  value={newDriver.license_number}
+                  onChange={(e) => setNewDriver(prev => ({ ...prev, license_number: e.target.value }))}
+                  placeholder="DL123456"
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Button 
+                  onClick={addDriver} 
+                  className="w-full" 
+                  disabled={!driverOtpVerified}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Driver
+                </Button>
+              </div>
+            </div>
+
+            {/* OTP Verification Section */}
+            {driverOtpSent && (
+              <div className="mt-4 p-4 border rounded-lg bg-gray-50">
+                <h4 className="font-medium mb-2">Phone Verification Required</h4>
+                <p className="text-sm text-gray-600 mb-3">
+                  Please verify the driver's phone number with the OTP sent to {driverOtpPhone}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="otp_code">Enter OTP</Label>
+                    <Input
+                      id="otp_code"
+                      value={driverOtpCode}
+                      onChange={(e) => setDriverOtpCode(e.target.value)}
+                      placeholder="Enter 6-digit OTP"
+                      maxLength={6}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button 
+                      onClick={verifyDriverOtp}
+                      disabled={!driverOtpCode || driverOtpCode.length !== 6}
+                      size="sm"
+                    >
+                      Verify OTP
+                    </Button>
+                  </div>
+                  <div className="flex items-end">
+                    <Button 
+                      onClick={resetDriverOtp}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+                {driverOtpVerified && (
+                  <div className="mt-2 text-sm text-green-600">
+                    ✓ Phone number verified successfully
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

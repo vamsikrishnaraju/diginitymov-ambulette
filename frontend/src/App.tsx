@@ -4,7 +4,9 @@ import { useState } from 'react'
 import BookingForm from './components/BookingForm'
 import AdminDashboard from './components/AdminDashboard'
 import Bookings from './components/Bookings'
+import ToastTest from './components/ToastTest'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { Toaster } from 'sonner'
 import './App.css'
 
 function NavigationContent() {
@@ -112,6 +114,7 @@ function NavigationContent() {
             <Route path="/" element={<BookingForm />} />
             <Route path="/bookings" element={<Bookings />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/test-toast" element={<ToastTest />} />
           </Routes>
         </main>
       </div>
@@ -123,6 +126,13 @@ function App() {
     <AuthProvider>
       <Router>
         <NavigationContent />
+        <Toaster 
+          position="top-right" 
+          richColors 
+          closeButton
+          duration={4000}
+          style={{ zIndex: 9999 }}
+        />
       </Router>
     </AuthProvider>
   )
