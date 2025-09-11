@@ -274,6 +274,7 @@ class BookingRequest(BaseModel):
     drop_location: Location
     from_date: datetime
     to_date: datetime
+    channel: str
 
 class Booking(BaseModel):
     id: str
@@ -328,6 +329,35 @@ class AssignAmbulanceRequest(BaseModel):
     booking_id: str
     ambulance_id: str
 
+class BookingUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    health_condition: Optional[str] = None
+    pickup_location: Optional[Location] = None
+    drop_location: Optional[Location] = None
+    from_date: Optional[datetime] = None
+    to_date: Optional[datetime] = None
+    status: Optional[str] = None
+    assigned_ambulance_id: Optional[str] = None
+
+class AmbulanceUpdateRequest(BaseModel):
+    license_plate: Optional[str] = None
+    model: Optional[str] = None
+    capacity: Optional[int] = None
+    status: Optional[str] = None
+
+class DriverUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    license_number: Optional[str] = None
+    status: Optional[str] = None
+
+class DriverAssignmentUpdateRequest(BaseModel):
+    driver_id: Optional[str] = None
+    ambulance_id: Optional[str] = None
+    date: Optional[date] = None
+
 class Employee(BaseModel):
     id: str
     name: str
@@ -368,6 +398,7 @@ class OTPVerifyRequest(BaseModel):
 
 class PhoneVerifyRequest(BaseModel):
     phone: str
+    channel: str
 
 class OTPResponse(BaseModel):
     message: str
@@ -514,19 +545,20 @@ async def verify_otp(verify_request: OTPVerifyRequest):
 async def create_booking(booking_request: BookingRequest):
     conn = await get_db_connection()
     try:
-        cursor = await conn.execute(
-            "SELECT verified, expires_at FROM otp_verifications WHERE phone = %s AND verified = true ORDER BY verified_at DESC LIMIT 1",
-            (booking_request.phone,)
-        )
-        result = await cursor.fetchone()
-        
-        if not result:
-            raise HTTPException(status_code=400, detail="Phone number must be verified with OTP before booking")
-        
-        verified, expires_at = result
-        if datetime.now(timezone.utc) > expires_at:
-            raise HTTPException(status_code=400, detail="OTP verification has expired. Please verify again")
-        
+        if booking_request.channel == 'web':
+            cursor = await conn.execute(
+                "SELECT verified, expires_at FROM otp_verifications WHERE phone = %s AND verified = true ORDER BY verified_at DESC LIMIT 1",
+                (booking_request.phone,)
+            )
+            result = await cursor.fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=400, detail="Phone number must be verified with OTP before booking")
+            
+            verified, expires_at = result
+            if datetime.now(timezone.utc) > expires_at:
+                raise HTTPException(status_code=400, detail="OTP verification has expired. Please verify again")
+            
         pickup_location_id = str(uuid.uuid4())
         drop_location_id = str(uuid.uuid4())
         
@@ -659,22 +691,157 @@ async def get_booking(booking_id: str):
     finally:
         await conn.close()
 
+@app.put("/api/admin/bookings/{booking_id}", response_model=Booking)
+async def update_booking(booking_id: str, booking_update: BookingUpdateRequest, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        # First, get the current booking to ensure it exists
+        cursor = await conn.execute("""
+            SELECT b.id, b.name, b.phone, b.email, b.health_condition, b.from_date, b.to_date, b.status, 
+                   b.assigned_ambulance_id, b.created_at, b.pickup_location_id, b.drop_location_id,
+                   pl.address as pickup_address, pl.latitude as pickup_lat, pl.longitude as pickup_lng,
+                   dl.address as drop_address, dl.latitude as drop_lat, dl.longitude as drop_lng
+            FROM bookings b
+            JOIN locations pl ON b.pickup_location_id = pl.id
+            JOIN locations dl ON b.drop_location_id = dl.id
+            WHERE b.id = %s
+        """, (booking_id,))
+        result = await cursor.fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        
+        # Update locations if provided
+        pickup_location_id = result[10]  # Current pickup_location_id
+        drop_location_id = result[11]    # Current drop_location_id
+        
+        if booking_update.pickup_location:
+            new_pickup_location_id = str(uuid.uuid4())
+            await conn.execute(
+                "INSERT INTO locations (id, address, latitude, longitude) VALUES (%s, %s, %s, %s)",
+                (new_pickup_location_id, booking_update.pickup_location.address, 
+                 booking_update.pickup_location.latitude, booking_update.pickup_location.longitude)
+            )
+            pickup_location_id = new_pickup_location_id
+        
+        if booking_update.drop_location:
+            new_drop_location_id = str(uuid.uuid4())
+            await conn.execute(
+                "INSERT INTO locations (id, address, latitude, longitude) VALUES (%s, %s, %s, %s)",
+                (new_drop_location_id, booking_update.drop_location.address,
+                 booking_update.drop_location.latitude, booking_update.drop_location.longitude)
+            )
+            drop_location_id = new_drop_location_id
+        
+        # Build update query
+        update_fields = []
+        update_values = []
+        
+        if booking_update.name is not None:
+            update_fields.append("name = %s")
+            update_values.append(booking_update.name)
+            
+        if booking_update.phone is not None:
+            update_fields.append("phone = %s")
+            update_values.append(booking_update.phone)
+            
+        if booking_update.email is not None:
+            update_fields.append("email = %s")
+            update_values.append(booking_update.email)
+            
+        if booking_update.health_condition is not None:
+            update_fields.append("health_condition = %s")
+            update_values.append(booking_update.health_condition)
+            
+        if booking_update.from_date is not None:
+            update_fields.append("from_date = %s")
+            update_values.append(booking_update.from_date)
+            
+        if booking_update.to_date is not None:
+            update_fields.append("to_date = %s")
+            update_values.append(booking_update.to_date)
+            
+        if booking_update.status is not None:
+            update_fields.append("status = %s")
+            update_values.append(booking_update.status)
+            
+        if booking_update.assigned_ambulance_id is not None:
+            update_fields.append("assigned_ambulance_id = %s")
+            update_values.append(booking_update.assigned_ambulance_id)
+        
+        # Always update location IDs if they changed
+        update_fields.append("pickup_location_id = %s")
+        update_values.append(pickup_location_id)
+        update_fields.append("drop_location_id = %s")
+        update_values.append(drop_location_id)
+        
+        if update_fields:
+            update_values.append(booking_id)
+            query = f"UPDATE bookings SET {', '.join(update_fields)} WHERE id = %s"
+            await conn.execute(query, update_values)
+            await conn.commit()
+        
+        # Return updated booking
+        cursor = await conn.execute("""
+            SELECT b.id, b.name, b.phone, b.email, b.health_condition, b.from_date, b.to_date, b.status, 
+                   b.assigned_ambulance_id, b.created_at,
+                   pl.address as pickup_address, pl.latitude as pickup_lat, pl.longitude as pickup_lng,
+                   dl.address as drop_address, dl.latitude as drop_lat, dl.longitude as drop_lng
+            FROM bookings b
+            JOIN locations pl ON b.pickup_location_id = pl.id
+            JOIN locations dl ON b.drop_location_id = dl.id
+            WHERE b.id = %s
+        """, (booking_id,))
+        updated_result = await cursor.fetchone()
+        
+        booking = Booking(
+            id=str(updated_result[0]),
+            name=updated_result[1],
+            phone=updated_result[2],
+            email=updated_result[3],
+            health_condition=updated_result[4],
+            from_date=updated_result[5],
+            to_date=updated_result[6],
+            status=updated_result[7],
+            assigned_ambulance_id=str(updated_result[8]) if updated_result[8] is not None else None,
+            created_at=updated_result[9],
+            pickup_location=Location(address=updated_result[10], latitude=float(updated_result[11]), longitude=float(updated_result[12])),
+            drop_location=Location(address=updated_result[13], latitude=float(updated_result[14]), longitude=float(updated_result[15]))
+        )
+        
+        return booking
+    finally:
+        await conn.close()
+
+@app.delete("/api/admin/bookings/{booking_id}")
+async def delete_booking(booking_id: str, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        cursor = await conn.execute("DELETE FROM bookings WHERE id = %s", (booking_id,))
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        await conn.commit()
+        return {"message": "Booking deleted successfully"}
+    finally:
+        await conn.close()
+
 @app.post("/api/bookings/by-phone", response_model=List[Booking])
 async def get_bookings_by_phone(verify_request: PhoneVerifyRequest):
     conn = await get_db_connection()
     try:
-        cursor = await conn.execute(
-            "SELECT verified, expires_at FROM otp_verifications WHERE phone = %s AND verified = true ORDER BY verified_at DESC LIMIT 1",
-            (verify_request.phone,)
-        )
-        result = await cursor.fetchone()
-        
-        if not result:
-            raise HTTPException(status_code=400, detail="Phone number must be verified with OTP before viewing bookings")
-        
-        verified, expires_at = result
-        if datetime.now(timezone.utc) > expires_at:
-            raise HTTPException(status_code=400, detail="OTP verification has expired. Please verify again")
+        if verify_request.channel == 'web':
+            cursor = await conn.execute(
+                "SELECT verified, expires_at FROM otp_verifications WHERE phone = %s AND verified = true ORDER BY verified_at DESC LIMIT 1",
+                (verify_request.phone,)
+            )
+            result = await cursor.fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=400, detail="Phone number must be verified with OTP before viewing bookings")
+            
+            verified, expires_at = result
+            if datetime.now(timezone.utc) > expires_at:
+                raise HTTPException(status_code=400, detail="OTP verification has expired. Please verify again")
         
         cursor = await conn.execute("""
             SELECT b.id, b.name, b.phone, b.email, b.health_condition, b.from_date, b.to_date, b.status, 
@@ -773,6 +940,86 @@ async def get_ambulances(current_user: str = Depends(verify_token)):
     finally:
         await conn.close()
 
+@app.get("/api/admin/ambulances/{ambulance_id}", response_model=Ambulance)
+async def get_ambulance(ambulance_id: str, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        cursor = await conn.execute("SELECT id, license_plate, model, capacity, status FROM ambulances WHERE id = %s", (ambulance_id,))
+        result = await cursor.fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Ambulance not found")
+        
+        ambulance = Ambulance(
+            id=str(result[0]),
+            license_plate=result[1],
+            model=result[2],
+            capacity=result[3],
+            status=result[4]
+        )
+        
+        return ambulance
+    finally:
+        await conn.close()
+
+@app.put("/api/admin/ambulances/{ambulance_id}", response_model=Ambulance)
+async def update_ambulance(ambulance_id: str, ambulance_update: AmbulanceUpdateRequest, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        # First, check if ambulance exists
+        cursor = await conn.execute("SELECT id, license_plate, model, capacity, status FROM ambulances WHERE id = %s", (ambulance_id,))
+        result = await cursor.fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Ambulance not found")
+        
+        # Build update query
+        update_fields = []
+        update_values = []
+        
+        if ambulance_update.license_plate is not None:
+            update_fields.append("license_plate = %s")
+            update_values.append(ambulance_update.license_plate)
+            
+        if ambulance_update.model is not None:
+            update_fields.append("model = %s")
+            update_values.append(ambulance_update.model)
+            
+        if ambulance_update.capacity is not None:
+            update_fields.append("capacity = %s")
+            update_values.append(ambulance_update.capacity)
+            
+        if ambulance_update.status is not None:
+            update_fields.append("status = %s")
+            update_values.append(ambulance_update.status)
+        
+        if update_fields:
+            update_values.append(ambulance_id)
+            query = f"UPDATE ambulances SET {', '.join(update_fields)} WHERE id = %s"
+            await conn.execute(query, update_values)
+            await conn.commit()
+        
+        # Return updated ambulance
+        cursor = await conn.execute("SELECT id, license_plate, model, capacity, status FROM ambulances WHERE id = %s", (ambulance_id,))
+        updated_result = await cursor.fetchone()
+        
+        ambulance = Ambulance(
+            id=str(updated_result[0]),
+            license_plate=updated_result[1],
+            model=updated_result[2],
+            capacity=updated_result[3],
+            status=updated_result[4]
+        )
+        
+        return ambulance
+    except Exception as e:
+        if "duplicate key value violates unique constraint" in str(e):
+            raise HTTPException(status_code=400, detail="Ambulance with this license plate already exists")
+        else:
+            raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await conn.close()
+
 @app.delete("/api/admin/ambulances/{ambulance_id}")
 async def delete_ambulance(ambulance_id: str, current_user: str = Depends(verify_token)):
     conn = await get_db_connection()
@@ -845,6 +1092,86 @@ async def get_drivers(current_user: str = Depends(verify_token)):
     finally:
         await conn.close()
 
+@app.get("/api/admin/drivers/{driver_id}", response_model=Driver)
+async def get_driver(driver_id: str, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        cursor = await conn.execute("SELECT id, name, phone, license_number, status FROM drivers WHERE id = %s", (driver_id,))
+        result = await cursor.fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Driver not found")
+        
+        driver = Driver(
+            id=str(result[0]),
+            name=result[1],
+            phone=result[2],
+            license_number=result[3],
+            status=result[4]
+        )
+        
+        return driver
+    finally:
+        await conn.close()
+
+@app.put("/api/admin/drivers/{driver_id}", response_model=Driver)
+async def update_driver(driver_id: str, driver_update: DriverUpdateRequest, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        # First, check if driver exists
+        cursor = await conn.execute("SELECT id, name, phone, license_number, status FROM drivers WHERE id = %s", (driver_id,))
+        result = await cursor.fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Driver not found")
+        
+        # Build update query
+        update_fields = []
+        update_values = []
+        
+        if driver_update.name is not None:
+            update_fields.append("name = %s")
+            update_values.append(driver_update.name)
+            
+        if driver_update.phone is not None:
+            update_fields.append("phone = %s")
+            update_values.append(driver_update.phone)
+            
+        if driver_update.license_number is not None:
+            update_fields.append("license_number = %s")
+            update_values.append(driver_update.license_number)
+            
+        if driver_update.status is not None:
+            update_fields.append("status = %s")
+            update_values.append(driver_update.status)
+        
+        if update_fields:
+            update_values.append(driver_id)
+            query = f"UPDATE drivers SET {', '.join(update_fields)} WHERE id = %s"
+            await conn.execute(query, update_values)
+            await conn.commit()
+        
+        # Return updated driver
+        cursor = await conn.execute("SELECT id, name, phone, license_number, status FROM drivers WHERE id = %s", (driver_id,))
+        updated_result = await cursor.fetchone()
+        
+        driver = Driver(
+            id=str(updated_result[0]),
+            name=updated_result[1],
+            phone=updated_result[2],
+            license_number=updated_result[3],
+            status=updated_result[4]
+        )
+        
+        return driver
+    except Exception as e:
+        if "duplicate key value violates unique constraint" in str(e):
+            raise HTTPException(status_code=400, detail="Driver with this phone or license number already exists")
+        else:
+            raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await conn.close()
+
 @app.delete("/api/admin/drivers/{driver_id}")
 async def delete_driver(driver_id: str, current_user: str = Depends(verify_token)):
     conn = await get_db_connection()
@@ -903,6 +1230,91 @@ async def get_driver_assignments(current_user: str = Depends(verify_token)):
             assignments.append(assignment)
         
         return assignments
+    finally:
+        await conn.close()
+
+@app.get("/api/admin/driver-assignments/{assignment_id}", response_model=DriverAssignment)
+async def get_driver_assignment(assignment_id: str, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        cursor = await conn.execute("SELECT id, driver_id, ambulance_id, assignment_date FROM driver_assignments WHERE id = %s", (assignment_id,))
+        result = await cursor.fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Driver assignment not found")
+        
+        assignment = DriverAssignment(
+            id=str(result[0]),
+            driver_id=str(result[1]),
+            ambulance_id=str(result[2]),
+            date=result[3]
+        )
+        return assignment
+    finally:
+        await conn.close()
+
+@app.put("/api/admin/driver-assignments/{assignment_id}", response_model=DriverAssignment)
+async def update_driver_assignment(assignment_id: str, assignment_update: DriverAssignmentUpdateRequest, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        # First, check if assignment exists
+        cursor = await conn.execute("SELECT id, driver_id, ambulance_id, assignment_date FROM driver_assignments WHERE id = %s", (assignment_id,))
+        result = await cursor.fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Driver assignment not found")
+        
+        # Build update query
+        update_fields = []
+        update_values = []
+        
+        if assignment_update.driver_id is not None:
+            update_fields.append("driver_id = %s")
+            update_values.append(assignment_update.driver_id)
+            
+        if assignment_update.ambulance_id is not None:
+            update_fields.append("ambulance_id = %s")
+            update_values.append(assignment_update.ambulance_id)
+            
+        if assignment_update.date is not None:
+            update_fields.append("assignment_date = %s")
+            update_values.append(assignment_update.date)
+        
+        if update_fields:
+            update_values.append(assignment_id)
+            query = f"UPDATE driver_assignments SET {', '.join(update_fields)} WHERE id = %s"
+            await conn.execute(query, update_values)
+            await conn.commit()
+        
+        # Return updated assignment
+        cursor = await conn.execute("SELECT id, driver_id, ambulance_id, assignment_date FROM driver_assignments WHERE id = %s", (assignment_id,))
+        updated_result = await cursor.fetchone()
+        
+        assignment = DriverAssignment(
+            id=str(updated_result[0]),
+            driver_id=str(updated_result[1]),
+            ambulance_id=str(updated_result[2]),
+            date=updated_result[3]
+        )
+        
+        return assignment
+    except Exception as e:
+        if "duplicate key value violates unique constraint" in str(e):
+            raise HTTPException(status_code=400, detail="Driver or ambulance already assigned for this date")
+        else:
+            raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await conn.close()
+
+@app.delete("/api/admin/driver-assignments/{assignment_id}")
+async def delete_driver_assignment(assignment_id: str, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        cursor = await conn.execute("DELETE FROM driver_assignments WHERE id = %s", (assignment_id,))
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Driver assignment not found")
+        await conn.commit()
+        return {"message": "Driver assignment deleted successfully"}
     finally:
         await conn.close()
 
@@ -981,7 +1393,7 @@ async def get_employees(current_user: str = Depends(verify_token)):
             employees = []
             for row in results:
                 employee = Employee(
-                    id=row[0],
+                    id=str(row[0]),
                     name=row[1],
                     phone=row[2],
                     email=row[3],
@@ -996,6 +1408,28 @@ async def get_employees(current_user: str = Depends(verify_token)):
     except:
         # Fallback to in-memory storage
         return list(employees_db.values())
+
+@app.get("/api/admin/employees/{employee_id}", response_model=Employee)
+async def get_employee(employee_id: str, current_user: str = Depends(verify_token)):
+    conn = await get_db_connection()
+    try:
+        cursor = await conn.execute("SELECT id, name, phone, email, position, status FROM employees WHERE id = %s", (employee_id,))
+        result = await cursor.fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Employee not found")
+        
+        employee = Employee(
+            id=str(result[0]),
+            name=result[1],
+            phone=result[2],
+            email=result[3],
+            position=result[4],
+            status=result[5]
+        )
+        return employee
+    finally:
+        await conn.close()
 
 @app.put("/api/admin/employees/{employee_id}", response_model=Employee)
 async def update_employee(employee_id: str, employee_update: EmployeeUpdateRequest, current_user: str = Depends(verify_token)):
@@ -1269,6 +1703,28 @@ async def get_expenses(token: HTTPAuthorizationCredentials = Depends(verify_toke
     except Exception as e:
         print(f"Database error: {e}")
         return list(expenses_db.values())
+
+@app.get("/api/admin/expenses/{expense_id}", response_model=Expense)
+async def get_expense(expense_id: str, token: HTTPAuthorizationCredentials = Depends(verify_token)):
+    try:
+        conn = await get_db_connection()
+        async with conn.cursor() as cur:
+            await cur.execute("""
+                SELECT e.*, emp.name as employee_name, a.license_plate as ambulance_plate
+                FROM expenses e
+                LEFT JOIN employees emp ON e.employee_id = emp.id
+                LEFT JOIN ambulances a ON e.ambulance_id = a.id
+                WHERE e.id = %s
+            """, (expense_id,))
+            expense = await cur.fetchone()
+            if not expense:
+                raise HTTPException(status_code=404, detail="Expense not found")
+            return dict(expense)
+    except Exception as e:
+        print(f"Database error: {e}")
+        if expense_id in expenses_db:
+            return expenses_db[expense_id]
+        raise HTTPException(status_code=404, detail="Expense not found")
 
 @app.put("/api/admin/expenses/{expense_id}")
 async def update_expense(expense_id: str, expense: ExpenseUpdateRequest, token: HTTPAuthorizationCredentials = Depends(verify_token)):
